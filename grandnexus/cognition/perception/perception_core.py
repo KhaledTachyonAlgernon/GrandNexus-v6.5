@@ -28,9 +28,10 @@ from enum import Enum, auto
 import threading
 
 # Will be imported from other modules
-from grandnexus.cognition.cognition_manager import (
-    CognitionManager, CognitiveModuleBase, CognitiveProcessType,
-    CognitiveMode, CognitiveContext, CognitiveRequest
+from grandnexus.cognition.contracts import (
+    CognitionManagerBase as CognitionManager,  # contrat : casse l'import circulaire
+    CognitiveModuleBase, CognitiveProcessType, CognitiveMode,
+    CognitiveContext, CognitiveRequest, CognitiveResult,
 )
 from grandnexus.memory.working import WorkingMemory
 from grandnexus.memory.semantic import SemanticMemory
@@ -87,7 +88,9 @@ class PerceptionCore(CognitiveModuleBase):
                  cognition_manager: Optional[CognitionManager] = None,
                  working_memory: Optional[WorkingMemory] = None,
                  semantic_memory: Optional[SemanticMemory] = None,
-                 llm_engine: Optional[LLMEngine] = None):
+                 llm_engine: Optional[LLMEngine] = None,
+                 nexus_core: Any = None,
+                 **kwargs):
         """
         Initialize the Perception Core.
 
@@ -101,6 +104,7 @@ class PerceptionCore(CognitiveModuleBase):
         self.working_memory = working_memory
         self.semantic_memory = semantic_memory
         self.llm_engine = llm_engine
+        self.nexus_core = nexus_core
 
         # Logger setup
         self.logger = logging.getLogger("PerceptionCore")

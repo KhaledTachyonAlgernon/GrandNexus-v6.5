@@ -1531,3 +1531,11 @@ class PlanningModule:
 
 # --- réparation 6.5 : alias du nom attendu par les autres modules
 PlanningEngine = PlanningModule
+
+# --- réparation 6.5 : CognitionManager appelle initialize() avant start()
+def _planning_initialize(self) -> bool:
+    if hasattr(self, "logger"):
+        self.logger.info("PlanningModule initialized")
+    return True
+if not hasattr(PlanningModule, "initialize"):
+    PlanningModule.initialize = _planning_initialize

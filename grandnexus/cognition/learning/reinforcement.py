@@ -319,7 +319,8 @@ class ReinforcementLearning:
                 nexus_core: Optional[NexusCore] = None,
                 episodic_memory: Optional[EpisodicMemory] = None,
                 working_memory: Optional[WorkingMemory] = None,
-                semantic_memory: Optional[SemanticMemory] = None):
+                semantic_memory: Optional[SemanticMemory] = None,
+                learning_core: Any = None):
         """
         Initialize the reinforcement learning module.
 
@@ -330,6 +331,7 @@ class ReinforcementLearning:
             working_memory: Reference to working memory (for active learning processes)
             semantic_memory: Reference to semantic memory (for storing learned policies)
         """
+        self.learning_core = learning_core  # réparation 6.5
         self.logger = logging.getLogger("GrandNexus.Learning.Reinforcement")
 
         # Store configuration

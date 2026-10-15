@@ -122,7 +122,13 @@ class CognitiveState:
     mode: str = "normal"       # Cognitive mode: normal, focused, exploratory, etc.
     metadata: Dict[str, Any] = field(default_factory=dict)
 
-class CognitionManager:
+from grandnexus.cognition.contracts import (  # réparation 6.5
+    CognitionManagerBase, CognitiveModuleBase, CognitiveProcessType, CognitiveMode,
+    CognitiveContext, CognitiveRequest, CognitiveResult, cognitive_capability,
+)
+
+
+class CognitionManager(CognitionManagerBase):
     """
     Central orchestrator for GrandNexus's cognitive functions, coordinating
     between perception, reasoning, learning, and metacognitive processes.

@@ -29,9 +29,10 @@ import random
 import math
 
 # Will be imported from other modules
-from grandnexus.cognition.cognition_manager import (
-    CognitionManager, CognitiveModuleBase, CognitiveProcessType,
-    CognitiveMode, CognitiveContext, CognitiveRequest, CognitiveResult
+from grandnexus.cognition.contracts import (
+    CognitionManagerBase as CognitionManager,  # contrat : casse l'import circulaire
+    CognitiveModuleBase, CognitiveProcessType, CognitiveMode,
+    CognitiveContext, CognitiveRequest, CognitiveResult,
 )
 from grandnexus.memory.working import WorkingMemory
 from grandnexus.memory.semantic import SemanticMemory
@@ -147,7 +148,10 @@ class ReasoningCore(CognitiveModuleBase):
                  working_memory: Optional[WorkingMemory] = None,
                  semantic_memory: Optional[SemanticMemory] = None,
                  graph_engine: Optional[GraphEngine] = None,
-                 llm_engine: Optional[LLMEngine] = None):
+                 llm_engine: Optional[LLMEngine] = None,
+                 episodic_memory: Any = None,
+                 nexus_core: Any = None,
+                 **kwargs):
         """
         Initialize the Reasoning Core.
 
@@ -163,6 +167,8 @@ class ReasoningCore(CognitiveModuleBase):
         self.semantic_memory = semantic_memory
         self.graph_engine = graph_engine
         self.llm_engine = llm_engine
+        self.episodic_memory = episodic_memory
+        self.nexus_core = nexus_core
 
         # Logger setup
         self.logger = logging.getLogger("ReasoningCore")
