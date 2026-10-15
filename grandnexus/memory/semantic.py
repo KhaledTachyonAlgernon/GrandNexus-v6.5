@@ -2077,8 +2077,7 @@ class SemanticMemory:
                         basic_clusters.append(list(cluster))
 
                     # Remove cluster concepts from remaining
-                    remainin
-                    g -= cluster
+                    remaining -= cluster
 
                 return {
                     "central_concepts": [

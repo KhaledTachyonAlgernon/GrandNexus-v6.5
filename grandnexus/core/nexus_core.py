@@ -348,11 +348,14 @@ class NexusCore:
       uptime = time.time() - self.start_time
       self.logger.info(f"NexusCore [{self.instance_id}] stopped. Total uptime: {uptime:.2f}s")
 
-      return stop_success
+      # Arrêter le gestionnaire d'erreurs (réparation 6.5 : était après le return)
+      if hasattr(self, "error_recovery"):
+          try:
+              self.error_recovery.shutdown()
+          except Exception as e:
+              self.logger.error(f"ErrorRecoveryManager.shutdown: {e}")
 
-      # Arrêter le gestionnaire d'erreurs
-      self.error_recovery.shutdown()
-      return success
+      return stop_success
 
     # Amélioration pour NexusCore._resolve_dependencies()
     def _resolve_dependencies(self) -> List[str]:
