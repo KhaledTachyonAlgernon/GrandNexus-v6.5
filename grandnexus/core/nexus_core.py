@@ -764,3 +764,7 @@ class NexusCore:
                 self.logger.info(f"Module '{module_name}' status updated to '{new_status}'")
             else:
                 self.logger.error(f"Cannot update status: Module '{module_name}' not found")
+
+# --- réparation 6.5 : bus publication/abonnement (voir core/event_bus.py)
+from grandnexus.core.event_bus import install_event_bus as _install_event_bus
+_install_event_bus(NexusCore)
