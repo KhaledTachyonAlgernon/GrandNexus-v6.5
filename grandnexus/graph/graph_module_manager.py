@@ -58,7 +58,8 @@ class GraphModuleManager:
 
         # Initialize the GraphEngine
         self.logger.info(f"Initializing GraphEngine of type '{graph_engine_type}'")
-        self.graph_engine = create_graph_engine(graph_engine_type, **graph_engine_config)
+        shared = config.get('graph_engine_instance')  # réparation 6.5 : graphe partagé
+        self.graph_engine = shared if shared is not None else create_graph_engine(graph_engine_type, **graph_engine_config)
 
         # Initialize PatternMining if enabled
         self.pattern_mining = None

@@ -190,6 +190,15 @@ def r12_graph_registry():
                  "            self.nexus_core.module_registry = registry\n"
                  "        registry.register(\"graph\", self)\n")
 
+def r13_shared_graph():
+    """GraphModuleManager créait toujours son propre graphe : la mémoire sémantique et le
+    gestionnaire de graphe vivaient dans deux graphes séparés. Il accepte maintenant une
+    instance existante via config['graph_engine_instance']."""
+    replace_once("grandnexus/graph/graph_module_manager.py",
+                 "        self.graph_engine = create_graph_engine(graph_engine_type, **graph_engine_config)\n",
+                 "        shared = config.get('graph_engine_instance')  # réparation 6.5 : graphe partagé\n"
+                 "        self.graph_engine = shared if shared is not None else create_graph_engine(graph_engine_type, **graph_engine_config)\n")
+
 if __name__ == "__main__":
     globals()[sys.argv[1]]()
     print("ok", sys.argv[1])

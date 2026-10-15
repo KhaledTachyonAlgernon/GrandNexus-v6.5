@@ -13,9 +13,10 @@ declare -A MSG=(
  [r10_flat_namespace_imports]="R10 imports manquants hérités de l'espace de noms plat du notebook (pyflakes)"
  [r11_logic_bugs]="R11 bugs logiques: boucle de clustering (remaining coupé) + arrêt ErrorRecovery en code mort"
  [r12_graph_registry]="R12 GraphModuleManager: ModuleRegistry utilisé comme instance partagée du core"
+ [r13_shared_graph]="R13 GraphModuleManager accepte le graphe partagé (graph_engine_instance)"
  [r9_robustness]="R9 robustesse: create_anomaly_filter hors classe, annotation ast différée, replis sans PyTorch"
 )
-for r in r2_syntax r3_dataclasses r4_graph_factory r5_aliases r6_missing_classes r7_event_bus r8_cognitive_contract r9_robustness r10_flat_namespace_imports r11_logic_bugs r12_graph_registry; do
+for r in r2_syntax r3_dataclasses r4_graph_factory r5_aliases r6_missing_classes r7_event_bus r8_cognitive_contract r9_robustness r10_flat_namespace_imports r11_logic_bugs r12_graph_registry r13_shared_graph; do
   python3 repairs.py "$r"
   (cd .. && git add -A && git commit -qm "${MSG[$r]}")
 done

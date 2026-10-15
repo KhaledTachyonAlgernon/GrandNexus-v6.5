@@ -117,7 +117,9 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
 
     def _graph_manager():
         from grandnexus.graph.graph_module_manager import GraphModuleManager
-        return GraphModuleManager(nexus_core=gn.core, config=dict(graph_config or {}))
+        cfg = dict(graph_config or {})
+        cfg.setdefault("graph_engine_instance", gn.graph)
+        return GraphModuleManager(nexus_core=gn.core, config=cfg)
     gn.graph_manager = _step(gn, "GraphModuleManager", _graph_manager, verbose)
 
     gn.cognition = _step(gn, "CognitionManager()", lambda: CognitionManager(
@@ -130,6 +132,16 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
         _step(gn, "voies cognitives (pathways)", gn.cognition._establish_initial_pathways, verbose)
         if gn.core is not None:
             _step(gn, "enregistrement dans NexusCore", gn.cognition._register_with_nexus_core, verbose)
+        def _share_graph():
+            # un seul graphe pour tout le système : injecté là où le manager n'en a pas passé
+            n = 0
+            for name, mod in gn.modules().items():
+                if hasattr(mod, "graph_engine") and getattr(mod, "graph_engine") is None:
+                    mod.graph_engine = gn.graph
+                    n += 1
+            return n
+        if gn.graph is not None:
+            _step(gn, "graphe partagé injecté", _share_graph, verbose)
         gn.cognition.initialized = True
         n = _step(gn, "câblage des capacités", gn.cognition.wire_capabilities, verbose)
         if start_threads:
