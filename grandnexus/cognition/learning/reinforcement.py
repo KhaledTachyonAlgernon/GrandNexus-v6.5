@@ -43,6 +43,9 @@ try:
 except ImportError:
     HAS_TORCH = False
 
+    class nn:  # réparation 6.5 : repli sans PyTorch (annotations nn.Module)
+        Module = object
+
 # Algorithm types
 class RLAlgorithm(Enum):
     """Types of reinforcement learning algorithms supported"""

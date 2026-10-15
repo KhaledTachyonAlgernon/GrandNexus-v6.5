@@ -1215,7 +1215,7 @@ class TemporalAttentionFilter:
 
 # Function to create a specialized attention filter for detecting anomalies
 
-    def create_anomaly_filter(baseline: Dict[str, Any],
+def create_anomaly_filter(baseline: Dict[str, Any],
                          threshold: float = 0.2,
                          working_memory: Optional[WorkingMemory] = None) -> Callable:
     """

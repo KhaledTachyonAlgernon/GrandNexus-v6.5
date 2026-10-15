@@ -54,6 +54,10 @@ try:
 except ImportError:
     HAS_AVALANCHE = False
 
+if "Dataset" not in globals():  # réparation 6.5 : repli sans PyTorch
+    class Dataset:
+        pass
+
 # Define continual learning strategies
 class CLStrategy(Enum):
     """Continual learning strategies available in the system"""
