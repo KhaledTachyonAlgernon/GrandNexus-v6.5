@@ -1642,3 +1642,6 @@ class ReinforcementLearning:
             self.config.final_exploration_rate,
             self.exploration_rate * self.config.exploration_decay
         )
+
+# --- réparation 6.5 : alias du nom attendu par les autres modules
+ReinforcementLearner = ReinforcementLearning

@@ -1004,3 +1004,6 @@ class ConfidenceEvaluator:
 
         # Return adjusted confidence
         return base_confidence
+
+# --- réparation 6.5 : alias du nom attendu par les autres modules
+ConfidenceEstimator = ConfidenceEvaluator

@@ -1528,3 +1528,6 @@ class PlanningModule:
         # No suitable task found
         self.logger.warning(f"No suitable task found for reactive planning for goal {goal.goal_id}")
         return False, state
+
+# --- réparation 6.5 : alias du nom attendu par les autres modules
+PlanningEngine = PlanningModule

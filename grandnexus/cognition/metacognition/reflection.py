@@ -1937,3 +1937,6 @@ class LessonExtractionStrategy(ReflectionStrategy):
         result.recommendations = recommendations
 
         return result
+
+# --- réparation 6.5 : alias du nom attendu par les autres modules
+Reflector = ReflectionModule
