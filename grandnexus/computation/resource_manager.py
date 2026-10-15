@@ -55,7 +55,7 @@ class SchedulingPolicy(Enum):
     ML_BASED = auto()         # Uses ML model to decide scheduling
 
 
-@dataclass(order=True)
+@dataclass(order=True, kw_only=True)
 class Task:
     """
     Represents a computational task to be managed by the ResourceManager.

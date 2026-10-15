@@ -47,7 +47,7 @@ from typing import (
 # DATA CLASSES
 # ---------------------------------------------------------------------------------
 
-@dataclass(order=True)
+@dataclass(order=True, kw_only=True)
 class TaskRequest:
     """
     Represents a task request. The 'order=True' property enables comparison
