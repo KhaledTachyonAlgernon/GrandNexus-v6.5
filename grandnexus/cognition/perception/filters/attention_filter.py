@@ -834,7 +834,7 @@ class AttentionFilter:
         # For other data types or no changes
         return data, False
 
-   def _filter_by_selective_attention(self, data: Any, focus: AttentionalFocus,
+    def _filter_by_selective_attention(self, data: Any, focus: AttentionalFocus,
                                       context: Dict[str, Any]) -> Tuple[Any, bool]:
         """
         Filter based on top-down selective attention.

@@ -1683,149 +1683,149 @@ class ReasoningCore(CognitiveModuleBase):
         entity_mappings = {}
 
         # If we have attributes for entities, use them for mapping
-            if all("attributes" in entity for entity in source_entities) and all("attributes" in entity for entity in target_entities):
-                # For each source entity
-                for source_entity in source_entities:
-                    # Find most similar target entity based on attributes
-                    best_match = None
-                    best_score = 0.0
+        if all("attributes" in entity for entity in source_entities) and all("attributes" in entity for entity in target_entities):
+            # For each source entity
+            for source_entity in source_entities:
+                # Find most similar target entity based on attributes
+                best_match = None
+                best_score = 0.0
 
-                    for target_entity in target_entities:
-                        # Calculate attribute similarity
-                        score = self._calculate_attribute_similarity(
-                            source_entity["attributes"],
-                            target_entity["attributes"]
-                        )
+                for target_entity in target_entities:
+                    # Calculate attribute similarity
+                    score = self._calculate_attribute_similarity(
+                        source_entity["attributes"],
+                        target_entity["attributes"]
+                    )
 
-                        if score > best_score:
-                            best_score = score
-                            best_match = target_entity
+                    if score > best_score:
+                        best_score = score
+                        best_match = target_entity
 
-                    # If we found a reasonable match
-                    if best_match and best_score > 0.3:
-                        mapping_id = str(uuid.uuid4())
-                        mapping = {
-                            "id": mapping_id,
-                            "source_entity": source_entity["name"],
-                            "target_entity": best_match["name"],
-                            "confidence": best_score,
-                            "mapped_attributes": self._get_shared_attributes(source_entity["attributes"], best_match["attributes"])
-                        }
-                        mappings.append(mapping)
-
-                        # Record entity mapping
-                        entity_mappings[source_entity["name"]] = best_match["name"]
-
-                        # Create sub-step
-                        sub_step = InferenceStep(
-                            description=f"Mapped {source_entity['name']} to {best_match['name']} (similarity: {best_score:.2f})",
-                            inputs={"source_entity": source_entity, "target_entity": best_match},
-                            outputs={"mapping": mapping},
-                            confidence=best_score
-                        )
-                        sub_steps.append(sub_step)
-
-            # If no attribute-based mapping was possible, use simple name-based mapping
-            if not mappings and len(source_entities) == len(target_entities):
-                for i, source_entity in enumerate(source_entities):
-                    target_entity = target_entities[i]
-
+                # If we found a reasonable match
+                if best_match and best_score > 0.3:
                     mapping_id = str(uuid.uuid4())
                     mapping = {
                         "id": mapping_id,
                         "source_entity": source_entity["name"],
-                        "target_entity": target_entity["name"],
-                        "confidence": 0.3,  # Lower confidence for simple position-based mapping
-                        "mapped_attributes": []
+                        "target_entity": best_match["name"],
+                        "confidence": best_score,
+                        "mapped_attributes": self._get_shared_attributes(source_entity["attributes"], best_match["attributes"])
                     }
                     mappings.append(mapping)
 
                     # Record entity mapping
-                    entity_mappings[source_entity["name"]] = target_entity["name"]
+                    entity_mappings[source_entity["name"]] = best_match["name"]
 
                     # Create sub-step
                     sub_step = InferenceStep(
-                        description=f"Mapped {source_entity['name']} to {target_entity['name']} (positional mapping)",
-                        inputs={"source_entity": source_entity, "target_entity": target_entity},
+                        description=f"Mapped {source_entity['name']} to {best_match['name']} (similarity: {best_score:.2f})",
+                        inputs={"source_entity": source_entity, "target_entity": best_match},
                         outputs={"mapping": mapping},
-                        confidence=0.3
+                        confidence=best_score
                     )
                     sub_steps.append(sub_step)
 
-            # Transfer relationships from source to target domain
-            for relationship in source_relationships:
-                # Get source entities involved in this relationship
-                source_entity1 = relationship.get("entity1")
-                source_entity2 = relationship.get("entity2", None)  # May be None for unary relationships
-                relation_type = relationship.get("type")
+        # If no attribute-based mapping was possible, use simple name-based mapping
+        if not mappings and len(source_entities) == len(target_entities):
+            for i, source_entity in enumerate(source_entities):
+                target_entity = target_entities[i]
 
-                # Check if we have mappings for these entities
-                if source_entity1 in entity_mappings:
-                    target_entity1 = entity_mappings[source_entity1]
-                    target_entity2 = None
+                mapping_id = str(uuid.uuid4())
+                mapping = {
+                    "id": mapping_id,
+                    "source_entity": source_entity["name"],
+                    "target_entity": target_entity["name"],
+                    "confidence": 0.3,  # Lower confidence for simple position-based mapping
+                    "mapped_attributes": []
+                }
+                mappings.append(mapping)
 
-                    if source_entity2 and source_entity2 in entity_mappings:
-                        target_entity2 = entity_mappings[source_entity2]
+                # Record entity mapping
+                entity_mappings[source_entity["name"]] = target_entity["name"]
 
-                    # Create inference
-                    inference_id = str(uuid.uuid4())
+                # Create sub-step
+                sub_step = InferenceStep(
+                    description=f"Mapped {source_entity['name']} to {target_entity['name']} (positional mapping)",
+                    inputs={"source_entity": source_entity, "target_entity": target_entity},
+                    outputs={"mapping": mapping},
+                    confidence=0.3
+                )
+                sub_steps.append(sub_step)
 
-                    if target_entity2:
-                        # Binary relationship inference
-                        inference = {
-                            "id": inference_id,
-                            "statement": f"{relation_type}({target_entity1}, {target_entity2})",
-                            "confidence": 0.5,  # Lower confidence for analogical inference
-                            "derived_from": {
-                                "source_relationship": relationship,
-                                "mapping1": next((m for m in mappings if m["source_entity"] == source_entity1), None),
-                                "mapping2": next((m for m in mappings if m["source_entity"] == source_entity2), None)
-                            }
+        # Transfer relationships from source to target domain
+        for relationship in source_relationships:
+            # Get source entities involved in this relationship
+            source_entity1 = relationship.get("entity1")
+            source_entity2 = relationship.get("entity2", None)  # May be None for unary relationships
+            relation_type = relationship.get("type")
+
+            # Check if we have mappings for these entities
+            if source_entity1 in entity_mappings:
+                target_entity1 = entity_mappings[source_entity1]
+                target_entity2 = None
+
+                if source_entity2 and source_entity2 in entity_mappings:
+                    target_entity2 = entity_mappings[source_entity2]
+
+                # Create inference
+                inference_id = str(uuid.uuid4())
+
+                if target_entity2:
+                    # Binary relationship inference
+                    inference = {
+                        "id": inference_id,
+                        "statement": f"{relation_type}({target_entity1}, {target_entity2})",
+                        "confidence": 0.5,  # Lower confidence for analogical inference
+                        "derived_from": {
+                            "source_relationship": relationship,
+                            "mapping1": next((m for m in mappings if m["source_entity"] == source_entity1), None),
+                            "mapping2": next((m for m in mappings if m["source_entity"] == source_entity2), None)
                         }
-                    else:
-                        # Unary relationship inference
-                        inference = {
-                            "id": inference_id,
-                            "statement": f"{relation_type}({target_entity1})",
-                            "confidence": 0.5,
-                            "derived_from": {
-                                "source_relationship": relationship,
-                                "mapping": next((m for m in mappings if m["source_entity"] == source_entity1), None)
-                            }
+                    }
+                else:
+                    # Unary relationship inference
+                    inference = {
+                        "id": inference_id,
+                        "statement": f"{relation_type}({target_entity1})",
+                        "confidence": 0.5,
+                        "derived_from": {
+                            "source_relationship": relationship,
+                            "mapping": next((m for m in mappings if m["source_entity"] == source_entity1), None)
                         }
+                    }
 
-                    inferences.append(inference)
+                inferences.append(inference)
 
-                    # Record supporting evidence
-                    if source_entity2:
-                        supporting_evidence[inference_id] = [
-                            f"Source relationship: {relation_type}({source_entity1}, {source_entity2})",
-                            f"Mapping: {source_entity1} -> {target_entity1}",
-                            f"Mapping: {source_entity2} -> {target_entity2}"
-                        ]
-                    else:
-                        supporting_evidence[inference_id] = [
-                            f"Source relationship: {relation_type}({source_entity1})",
-                            f"Mapping: {source_entity1} -> {target_entity1}"
-                        ]
+                # Record supporting evidence
+                if source_entity2:
+                    supporting_evidence[inference_id] = [
+                        f"Source relationship: {relation_type}({source_entity1}, {source_entity2})",
+                        f"Mapping: {source_entity1} -> {target_entity1}",
+                        f"Mapping: {source_entity2} -> {target_entity2}"
+                    ]
+                else:
+                    supporting_evidence[inference_id] = [
+                        f"Source relationship: {relation_type}({source_entity1})",
+                        f"Mapping: {source_entity1} -> {target_entity1}"
+                    ]
 
-                    # Create sub-step
-                    if target_entity2:
-                        sub_step = InferenceStep(
-                            description=f"Transferred relationship {relation_type} from ({source_entity1}, {source_entity2}) to ({target_entity1}, {target_entity2})",
-                            inputs={"relationship": relationship, "mappings": entity_mappings},
-                            outputs={"inference": inference},
-                            confidence=0.5
-                        )
-                    else:
-                        sub_step = InferenceStep(
-                            description=f"Transferred relationship {relation_type} from {source_entity1} to {target_entity1}",
-                            inputs={"relationship": relationship, "mappings": entity_mappings},
-                            outputs={"inference": inference},
-                            confidence=0.5
-                        )
+                # Create sub-step
+                if target_entity2:
+                    sub_step = InferenceStep(
+                        description=f"Transferred relationship {relation_type} from ({source_entity1}, {source_entity2}) to ({target_entity1}, {target_entity2})",
+                        inputs={"relationship": relationship, "mappings": entity_mappings},
+                        outputs={"inference": inference},
+                        confidence=0.5
+                    )
+                else:
+                    sub_step = InferenceStep(
+                        description=f"Transferred relationship {relation_type} from {source_entity1} to {target_entity1}",
+                        inputs={"relationship": relationship, "mappings": entity_mappings},
+                        outputs={"inference": inference},
+                        confidence=0.5
+                    )
 
-                    sub_steps.append(sub_step)
+                sub_steps.append(sub_step)
 
         # Use LLM for more sophisticated analogical reasoning if available
         if self.llm_engine and not inferences:
