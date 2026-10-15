@@ -2741,38 +2741,41 @@ class Neo4jGraphEngine(AbstractGraphEngine):
 # Factory function to create graph engines
 # -----------------------------------------------------------------------------
 
-    def create_graph_engine(engine_type: str, **kwargs) -> AbstractGraphEngine:
-        """
-        Factory function to create the appropriate graph engine.
+def create_graph_engine(engine_type: str, **kwargs) -> AbstractGraphEngine:
+    """
+    Factory function to create the appropriate graph engine.
 
-        Args:
-            engine_type: Type of engine to create ("inmemory" or "neo4j")
-            **kwargs: Arguments to pass to the engine constructor
+    Args:
+        engine_type: Type of engine to create ("inmemory" or "neo4j")
+        **kwargs: Arguments to pass to the engine constructor
 
-        Returns:
-            An instance of the appropriate graph engine
+    Returns:
+        An instance of the appropriate graph engine
 
-        Raises:
-            ValueError: If engine_type is not recognized
-            ImportError: If required dependencies are not available
-        """
-        engine_type = engine_type.lower()
+    Raises:
+        ValueError: If engine_type is not recognized
+        ImportError: If required dependencies are not available
+    """
+    engine_type = engine_type.lower()
 
-        if engine_type == "inmemory":
-            return InMemoryGraphEngine(**kwargs)
+    if engine_type == "inmemory":
+        return InMemoryGraphEngine(**kwargs)
 
-        elif engine_type == "neo4j":
-            if not HAS_NEO4J:
-                raise ImportError("Neo4j Python driver is not installed. Install with: pip install neo4j")
+    elif engine_type == "neo4j":
+        if not HAS_NEO4J:
+            raise ImportError("Neo4j Python driver is not installed. Install with: pip install neo4j")
 
-            # Validate required parameters
-            required_params = ["uri", "user", "password"]
-            missing_params = [p for p in required_params if p not in kwargs]
+        # Validate required parameters
+        required_params = ["uri", "user", "password"]
+        missing_params = [p for p in required_params if p not in kwargs]
 
-            if missing_params:
-                raise ValueError(f"Missing required Neo4j parameters: {missing_params}")
+        if missing_params:
+            raise ValueError(f"Missing required Neo4j parameters: {missing_params}")
 
-            return Neo4jGraphEngine(**kwargs)
+        return Neo4jGraphEngine(**kwargs)
 
-        else:
-            raise ValueError(f"Unknown engine type: {engine_type}. Supported types: inmemory, neo4j")
+    else:
+        raise ValueError(f"Unknown engine type: {engine_type}. Supported types: inmemory, neo4j")
+
+# --- réparation 6.5 : nom attendu par pattern_recognizer, reasoning_core, llm_engine
+GraphEngine = AbstractGraphEngine

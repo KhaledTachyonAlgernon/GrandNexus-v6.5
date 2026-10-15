@@ -2708,3 +2708,6 @@ def create_graph_engine(engine_type: str, **kwargs) -> AbstractGraphEngine:
         return Neo4jGraphEngine(**kwargs)
     else:
         raise ValueError(f"Unsupported graph engine type: {engine_type}")
+
+# --- réparation 6.5 : nom attendu par pattern_recognizer, reasoning_core, llm_engine
+GraphEngine = AbstractGraphEngine
