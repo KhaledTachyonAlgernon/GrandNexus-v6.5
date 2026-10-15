@@ -1453,3 +1453,15 @@ class LearningCore:
         }
 
         return result
+
+# --- réparation 6.5 : LearningResult (importé par continuous_learner, jamais défini)
+@dataclass
+class LearningResult:
+    """Résultat d'une tâche d'apprentissage."""
+    success: bool
+    metrics: Dict[str, Any] = field(default_factory=dict)
+    logs: List[str] = field(default_factory=list)
+    learned_model: Any = None
+    task_id: Optional[str] = None
+    duration: float = 0.0
+    timestamp: float = field(default_factory=time.time)

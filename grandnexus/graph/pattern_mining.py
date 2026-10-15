@@ -1482,23 +1482,23 @@ class PatternMiningModule(PatternMiningInterface):
         }
 
 # Utility function to create a PatternMiningModule from a GraphEngine
-    def create_pattern_mining(graph_engine: AbstractGraphEngine,
-                            use_networkx: bool = True,
-                            embedding_dim: int = 128) -> PatternMiningModule:
-        """
-        Factory function to create a PatternMiningModule for a given GraphEngine.
+def create_pattern_mining(graph_engine: AbstractGraphEngine,
+                        use_networkx: bool = True,
+                        embedding_dim: int = 128) -> PatternMiningModule:
+    """
+    Factory function to create a PatternMiningModule for a given GraphEngine.
 
-        Args:
-            graph_engine: The GraphEngine to mine patterns from
-            use_networkx: Whether to use NetworkX for advanced algorithms (if available)
-            embedding_dim: Dimension for pattern embeddings
+    Args:
+        graph_engine: The GraphEngine to mine patterns from
+        use_networkx: Whether to use NetworkX for advanced algorithms (if available)
+        embedding_dim: Dimension for pattern embeddings
 
-        Returns:
-            A configured PatternMiningModule instance
-        """
-        return PatternMiningModule(
-            graph_engine=graph_engine,
-            use_networkx=use_networkx,
-            default_similarity_threshold=0.7,
-            embedding_dim=embedding_dim
-        )
+    Returns:
+        A configured PatternMiningModule instance
+    """
+    return PatternMiningModule(
+        graph_engine=graph_engine,
+        use_networkx=use_networkx,
+        default_similarity_threshold=0.7,
+        embedding_dim=embedding_dim
+    )
