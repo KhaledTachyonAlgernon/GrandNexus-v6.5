@@ -110,7 +110,11 @@ class GraphModuleManager:
         self.nexus_core.register_handler("memory.episodic_created", self._handle_episodic_created)
 
         # Register with ModuleRegistry
-        ModuleRegistry.register("graph", self)
+        registry = getattr(self.nexus_core, "module_registry", None)  # réparation 6.5
+        if registry is None:
+            registry = ModuleRegistry(self.nexus_core)
+            self.nexus_core.module_registry = registry
+        registry.register("graph", self)
 
     # --------------------------------------------------------------------------
     # Core GraphEngine API handlers

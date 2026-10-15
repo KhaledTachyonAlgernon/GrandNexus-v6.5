@@ -179,6 +179,17 @@ def r11_logic_bugs():
                  "      if hasattr(self, \"error_recovery\"):\n          try:\n              self.error_recovery.shutdown()\n"
                  "          except Exception as e:\n              self.logger.error(f\"ErrorRecoveryManager.shutdown: {e}\")\n\n      return stop_success\n")
 
+def r12_graph_registry():
+    """GraphModuleManager appelait ModuleRegistry.register(...) comme une méthode de classe,
+    alors que ModuleRegistry est une instance liée au core : registre partagé créé sur le core."""
+    replace_once("grandnexus/graph/graph_module_manager.py",
+                 "        ModuleRegistry.register(\"graph\", self)\n",
+                 "        registry = getattr(self.nexus_core, \"module_registry\", None)  # réparation 6.5\n"
+                 "        if registry is None:\n"
+                 "            registry = ModuleRegistry(self.nexus_core)\n"
+                 "            self.nexus_core.module_registry = registry\n"
+                 "        registry.register(\"graph\", self)\n")
+
 if __name__ == "__main__":
     globals()[sys.argv[1]]()
     print("ok", sys.argv[1])
