@@ -18,6 +18,7 @@ Key principles:
 - Support integration with memory and perception modules
 """
 
+import re  # réparation 6.5 : fourni avant par l'espace de noms partagé du notebook
 import logging
 import threading
 import time

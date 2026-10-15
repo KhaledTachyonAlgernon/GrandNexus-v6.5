@@ -21,6 +21,7 @@ The design emphasizes:
 - Integration with other metacognitive components
 """
 
+import sys  # réparation 6.5 : fourni avant par l'espace de noms partagé du notebook
 import logging
 import threading
 import time

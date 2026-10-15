@@ -19,6 +19,7 @@ Key design principles:
 - Extensible plugin system for different programming languages
 """
 
+import math  # réparation 6.5 : fourni avant par l'espace de noms partagé du notebook
 import logging
 import ast
 import re

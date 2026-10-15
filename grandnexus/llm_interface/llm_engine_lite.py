@@ -1,5 +1,6 @@
 # llm_interface/llm_engine.py
 
+import uuid  # réparation 6.5 : fourni avant par l'espace de noms partagé du notebook
 import logging
 import threading
 import time

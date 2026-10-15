@@ -12,6 +12,7 @@ It is fully thread-safe via RLock, and can be integrated with other memory or
 cognition modules in GrandNexus.
 """
 
+import math  # réparation 6.5 : fourni avant par l'espace de noms partagé du notebook
 import logging
 import threading
 import time

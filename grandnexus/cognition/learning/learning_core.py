@@ -13,6 +13,7 @@ The design philosophy emphasizes:
 - Flexibility: Support for multiple learning paradigms without rigidity
 """
 
+import random  # réparation 6.5 : fourni avant par l'espace de noms partagé du notebook
 import logging
 import threading
 import time

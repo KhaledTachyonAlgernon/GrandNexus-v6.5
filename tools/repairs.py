@@ -146,6 +146,39 @@ def r9_robustness():
                  "except ImportError:\n    HAS_TORCH = False\n",
                  "except ImportError:\n    HAS_TORCH = False\n\n    class nn:  # réparation 6.5 : repli sans PyTorch (annotations nn.Module)\n        Module = object\n")
 
+def r10_flat_namespace_imports():
+    """Noms utilisés mais jamais importés : dans Colab ils venaient d'une autre cellule.
+    Détectés avec pyflakes (undefined name)."""
+    for p, line in [
+        ("grandnexus/cognition/learning/learning_core.py", "import random"),
+        ("grandnexus/cognition/metacognition/monitor.py", "import sys"),
+        ("grandnexus/cognition/perception/code_analyzer.py", "import math"),
+        ("grandnexus/memory/working.py", "import math"),
+        ("grandnexus/cognition/reasoning/reasoning_core.py", "import re"),
+        ("grandnexus/core/registry.py", "from collections import deque"),
+        ("grandnexus/llm_interface/llm_engine_lite.py", "import uuid"),
+        ("grandnexus/core/nexus_core.py", "from grandnexus.core.errorRecoveryManager import ErrorRecoveryManager"),
+    ]:
+        add_import(p, line)
+    replace_once("grandnexus/llm_interface/llm_engine.py",
+                 "from grandnexus.graph.graph_engine import GraphEngine\n",
+                 "from grandnexus.graph.graph_engine import GraphEngine\nfrom grandnexus.graph.graph_engine import GraphQuery  # réparation 6.5\n")
+
+def r11_logic_bugs():
+    """Vrais bugs de logique trouvés par pyflakes.
+    - semantic.py : 'remaining -= cluster' coupé en deux lignes -> la boucle de
+      clustering ne retirait jamais les concepts traités (boucle infinie possible).
+    - nexus_core.stop() : l'arrêt de ErrorRecoveryManager était placé après le return
+      (code mort) -> son thread n'était jamais arrêté."""
+    replace_once("grandnexus/memory/semantic.py",
+                 "                    remainin\n                    g -= cluster\n",
+                 "                    remaining -= cluster\n")
+    replace_once("grandnexus/core/nexus_core.py",
+                 "      return stop_success\n\n      # Arrêter le gestionnaire d'erreurs\n      self.error_recovery.shutdown()\n      return success\n",
+                 "      # Arrêter le gestionnaire d'erreurs (réparation 6.5 : était après le return)\n"
+                 "      if hasattr(self, \"error_recovery\"):\n          try:\n              self.error_recovery.shutdown()\n"
+                 "          except Exception as e:\n              self.logger.error(f\"ErrorRecoveryManager.shutdown: {e}\")\n\n      return stop_success\n")
+
 if __name__ == "__main__":
     globals()[sys.argv[1]]()
     print("ok", sys.argv[1])

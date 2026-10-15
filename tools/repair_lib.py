@@ -32,3 +32,12 @@ def copy_new(name, dest):
     """Installe un fichier neuf depuis tools/new_files/."""
     src = ROOT / "tools" / "new_files" / name
     (ROOT / dest).write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+
+def add_import(p, line):
+    """Ajoute une ligne d'import avant le premier import de niveau module."""
+    s = read(p)
+    if line in s.split("\n"): return
+    lines = s.split("\n")
+    i = next(k for k, l in enumerate(lines) if l.startswith(("import ", "from ")))
+    lines.insert(i, line + "  # réparation 6.5 : fourni avant par l'espace de noms partagé du notebook")
+    write(p, "\n".join(lines))
