@@ -41,11 +41,11 @@ class CognitiveProcessType(Enum):
 
 
 class CognitiveMode(Enum):
-    REACTIVE = auto()       # réponse rapide, peu de ressources
-    DELIBERATIVE = auto()   # raisonnement approfondi
+    REACTIVE = auto()       # quick response, low resources
+    DELIBERATIVE = auto()   # in-depth reasoning
     CREATIVE = auto()       # exploration, analogies
-    REFLECTIVE = auto()     # métacognition, auto-analyse
-    EXPLORATORY = auto()    # curiosité, collecte d'information
+    REFLECTIVE = auto()     # metacognition, self-analysis
+    EXPLORATORY = auto()    # curiosity, information gathering
 
 
 @dataclass
@@ -78,7 +78,7 @@ class CognitiveRequest:
     query: Any = None
     context: CognitiveContext = field(default_factory=CognitiveContext)
     process_type: Optional[CognitiveProcessType] = None
-    capability: Optional[str] = None          # nom de capacité ciblée (optionnel)
+    capability: Optional[str] = None          # target capability name (optional)
     source: str = "external"
     priority: float = 0.5
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -222,7 +222,7 @@ class CognitionManagerBase:
 
     cognitive_capability = staticmethod(cognitive_capability)
 
-    # -- registre (paresseux pour ne rien changer au __init__ existant) --------
+    # -- registry (lazy to avoid changing the existing __init__) --------
     @property
     def capabilities(self) -> CapabilityRegistry:
         reg = self.__dict__.get("_gn_capabilities")

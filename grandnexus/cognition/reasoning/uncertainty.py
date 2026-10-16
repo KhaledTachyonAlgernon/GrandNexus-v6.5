@@ -1227,7 +1227,7 @@ class UncertaintyManager:
                         if isinstance(old_value[key], (int, float)) and isinstance(new_value[key], (int, float)):
                             result[key] = (old_value[key] + new_value[key]) / 2
                         else:
-                            # For non-numeric, keep new value
+                            # For non-numeric values, keep the new value
                             result[key] = new_value[key]
                     elif key in new_value:
                         result[key] = new_value[key]

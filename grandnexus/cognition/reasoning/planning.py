@@ -1529,10 +1529,10 @@ class PlanningModule:
         self.logger.warning(f"No suitable task found for reactive planning for goal {goal.goal_id}")
         return False, state
 
-# --- réparation 6.5 : alias du nom attendu par les autres modules
+# --- fix 6.5: alias for the name expected by other modules
 PlanningEngine = PlanningModule
 
-# --- réparation 6.5 : CognitionManager appelle initialize() avant start()
+# --- fix 6.5: CognitionManager calls initialize() before start()
 def _planning_initialize(self) -> bool:
     if hasattr(self, "logger"):
         self.logger.info("PlanningModule initialized")

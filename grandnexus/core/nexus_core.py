@@ -1,4 +1,4 @@
-from grandnexus.core.errorRecoveryManager import ErrorRecoveryManager  # réparation 6.5 : fourni avant par l'espace de noms partagé du notebook
+from grandnexus.core.errorRecoveryManager import ErrorRecoveryManager  # fix 6.5: previously provided by the notebook's shared namespace
 import logging
 import threading
 import time
@@ -230,7 +230,7 @@ class NexusCore:
                     self.logger.info(f"Module '{name}' configuration updated and applied.")
                 except Exception as e:
                      self.logger.error(f"Error applying configuration to module '{name}': {e}")
-                     #  Don't change the module status here, as the module might still be functional
+                     # Don't change the module status here, as the module might still be functional
 
             self._persist_module(name) # Persist new config
             self.logger.info(f"Module '{name}' configuration updated in registry.")
@@ -348,7 +348,7 @@ class NexusCore:
       uptime = time.time() - self.start_time
       self.logger.info(f"NexusCore [{self.instance_id}] stopped. Total uptime: {uptime:.2f}s")
 
-      # Arrêter le gestionnaire d'erreurs (réparation 6.5 : était après le return)
+      # Stop the error handler (fix 6.5: was after the return)
       if hasattr(self, "error_recovery"):
           try:
               self.error_recovery.shutdown()
@@ -357,7 +357,7 @@ class NexusCore:
 
       return stop_success
 
-    # Amélioration pour NexusCore._resolve_dependencies()
+    # Enhancement for NexusCore._resolve_dependencies()
     def _resolve_dependencies(self) -> List[str]:
         """
         Determines the startup (and shutdown) order of modules based on dependencies.
@@ -543,7 +543,7 @@ class NexusCore:
               self._persist_module(name)  # Persist
               return False
 
-    # Améliorations pour les hooks du cycle de vie
+    # Enhancements for lifecycle hooks
 
     def add_hook(self, hook_type: str, hook_func: Callable[['NexusCore'], None]) -> bool:
         """
@@ -769,6 +769,6 @@ class NexusCore:
             else:
                 self.logger.error(f"Cannot update status: Module '{module_name}' not found")
 
-# --- réparation 6.5 : bus publication/abonnement (voir core/event_bus.py)
+# --- fix 6.5: publish/subscribe bus (see core/event_bus.py)
 from grandnexus.core.event_bus import install_event_bus as _install_event_bus
 _install_event_bus(NexusCore)

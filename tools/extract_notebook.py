@@ -6,7 +6,7 @@ Usage : python tools/extract_notebook.py archive/GrandNexusV_6_4_29_05_2025.ipyn
 """
 import json, os, sys
 
-# cellule -> chemin dans le paquet (canonique d'après l'arbre d'architecture + imports réels)
+# cell -> path in the package (canonical according to the architecture tree + actual imports)
 CELL_MAP = {
     4:  "grandnexus/core/nexus_core.py",
     6:  "grandnexus/core/errorRecoveryManager.py",
@@ -37,15 +37,15 @@ CELL_MAP = {
     57: "grandnexus/cognition/metacognition/confidence.py",
     59: "grandnexus/cognition/metacognition/adaptation.py",
     61: "grandnexus/cognition/metacognition/reflection.py",
-    63: "grandnexus/graph/graph_engine_v1.py",        # doublon : 1re version (conservée)
-    65: "grandnexus/graph/graph_engine.py",           # canonique : V2, sur-ensemble de la V1
+    63: "grandnexus/graph/graph_engine_v1.py",        # duplicate: 1st version (kept)
+    65: "grandnexus/graph/graph_engine.py",           # canonical: V2, superset of V1
     67: "grandnexus/graph/pattern_mining.py",
     70: "grandnexus/graph/graph_pattern_interface.py",
     72: "grandnexus/graph/graph_module_manager.py",
-    74: "grandnexus/computation/resource_manager_ml.py",  # doublon : variante ordonnanceur ML (conservée)
-    76: "grandnexus/computation/resource_manager.py",     # canonique : quotas par module + NexusCore
-    78: "grandnexus/llm_interface/llm_engine.py",         # canonique : intégration mémoire/graphe
-    80: "grandnexus/llm_interface/llm_engine_lite.py",    # doublon : fallback + embeddings (conservée)
+    74: "grandnexus/computation/resource_manager_ml.py",  # duplicate: ML scheduler variant (kept)
+    76: "grandnexus/computation/resource_manager.py",     # canonical: quotas per module + NexusCore
+    78: "grandnexus/llm_interface/llm_engine.py",         # canonical: memory/graph integration
+    80: "grandnexus/llm_interface/llm_engine_lite.py",    # duplicate: fallback + embeddings (kept)
     82: "grandnexus/llm_interface/prompt_templates.py",
     84: "grandnexus/llm_interface/response_parser.py",
     86: "grandnexus/llm_interface/__init__.py",
@@ -56,7 +56,7 @@ for i in (90, 92, 95, 96, 97):
     ARCHIVE[i] = f"archive/cell{i}_gemini_helper.py"
 
 def clean(src):
-    # magies IPython commentées pour rester importable hors Colab
+    # IPython magics commented out to remain importable outside Colab
     return "\n".join(("# " + l) if l.lstrip().startswith(("%", "!")) else l for l in src.split("\n"))
 
 def main(nb_path, out="."):

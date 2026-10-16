@@ -12,35 +12,35 @@ GrandNexus/
 │   └── working.py
 │
 ├── cognition/
-├── cognition_manager.py      # Orchestrateur central de la cognition
+├── cognition_manager.py      # Central cognition orchestrator
 │
 ├── perception/
-│   ├── perception_core.py    # Module de base pour l'interprétation des entrées
-│   ├── symbolic_parser.py    # Parsing des expressions symboliques/mathématiques
-│   ├── code_analyzer.py      # Analyse de code et structures formelles
-│   ├── pattern_recognizer.py # Détection de motifs récurrents
-│   └── filters/              # Filtres attentionnels et contextuels
+│   ├── perception_core.py    # Core module for input interpretation
+│   ├── symbolic_parser.py    # Parser for symbolic/mathematical expressions
+│   ├── code_analyzer.py      # Code analysis and formal structures
+│   ├── pattern_recognizer.py # Detection of recurring patterns
+│   └── filters/              # Attentional and contextual filters
 │
 ├── reasoning/
-│   ├── reasoning_core.py     # Core du système de raisonnement
-│   ├── neural_reasoner.py    # Raisonnement par réseaux neuronaux (embeddings)
-│   ├── hybrid_inference.py   # Module neuro-symbolique (LNN, DeepProbLog, etc.)
-│   ├── planning.py           # Planification et décomposition d'objectifs
-│   └── uncertainty.py        # Gestion de l'incertitude et raisonnement probabiliste
+│   ├── reasoning_core.py     # Core of the reasoning system
+│   ├── neural_reasoner.py    # Reasoning using neural networks (embeddings)
+│   ├── hybrid_inference.py   # Neuro-symbolic module (LNN, DeepProbLog, etc.)
+│   ├── planning.py           # Planning and goal decomposition
+│   └── uncertainty.py        # Uncertainty management and probabilistic reasoning
 │
 ├── learning/
-│   ├── learning_core.py      # Core du système d'apprentissage
-│   ├── continuous_learner.py # Apprentissage continu (Avalanche)
-│   ├── meta_learner.py       # Méta-apprentissage (learn2learn)
-│   ├── reinforcement.py      # Apprentissage par renforcement
-│   ├── intrinsic_motivation.py # Motivation et curiosité computationnelle
-│   └── curriculum.py         # Gestion du curriculum d'apprentissage
+│   ├── learning_core.py      # Core of the learning system
+│   ├── continuous_learner.py # Continuous learning (Avalanche)
+│   ├── meta_learner.py       # Meta-learning (learn2learn)
+│   ├── reinforcement.py      # Reinforcement learning
+│   ├── intrinsic_motivation.py # Motivation and computational curiosity
+│   └── curriculum.py         # Learning curriculum management
 │
 └── metacognition/
-    ├── monitor.py            # Surveillance des processus cognitifs
-    ├── confidence.py         # Évaluation de la confiance/incertitude
-    ├── adaptation.py         # Ajustement dynamique des paramètres
-    └── reflection.py         # Auto-analyse des processus de raisonnement
+    ├── monitor.py            # Monitoring of cognitive processes
+    ├── confidence.py         # Confidence/uncertainty assessment
+    ├── adaptation.py         # Dynamic adjustment of parameters
+    └── reflection.py         # Self-analysis of reasoning processes
 │
 ├── graph/
 │   ├── graph_engine.py

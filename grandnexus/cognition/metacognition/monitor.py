@@ -21,7 +21,7 @@ The design emphasizes:
 - Integration with other metacognitive components
 """
 
-import sys  # réparation 6.5 : fourni avant par l'espace de noms partagé du notebook
+import sys  # fix 6.5: previously supplied by the notebook's shared namespace
 import logging
 import threading
 import time
@@ -1449,5 +1449,5 @@ class CognitiveMonitor:
 
         return recommendations
 
-# --- réparation 6.5 : alias du nom attendu par les autres modules
+# --- fix 6.5: alias of the name expected by other modules
 MetaMonitor = CognitiveMonitor

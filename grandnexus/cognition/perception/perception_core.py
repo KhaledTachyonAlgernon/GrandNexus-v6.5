@@ -681,7 +681,7 @@ class PerceptionCore(CognitiveModuleBase):
         kv_pattern = re.compile(r'^\s*[\w-]+\s*[:=]\s*.+$', re.MULTILINE)
         kv_matches = kv_pattern.findall(input_data)
         if len(kv_matches) > 2 and len(kv_matches) / input_data.count("\n") > 0.5:
-            return 0.7  # Looks like key-value configuration format
+            return 0.7  # Looks like a key-value configuration format
 
         return 0.1  # Low confidence
 
@@ -1152,14 +1152,14 @@ class PerceptionCore(CognitiveModuleBase):
         Returns:
             Dict[str, Any]: Extracted structured information
         """
-        # First perform basic perception
+        # First, perform basic perception
         perception_result = self.perceive_input(request, context, query, **kwargs)
 
-        # If there was an error in basic perception, return it
+        # If there was an error during basic perception, return it
         if "error" in perception_result:
             return perception_result
 
-        # If input is not text, return the basic perception result
+        # If the input is not text, return the basic perception result
         if perception_result["input_type"] != "TEXT":
             return {
                 "message": "Extraction of structured information is only supported for text input",
@@ -1280,10 +1280,10 @@ class PerceptionCore(CognitiveModuleBase):
         Returns:
             Dict[str, Any]: Classification results
         """
-        # First perform basic perception
+        # First, perform basic perception
         perception_result = self.perceive_input(request, context, query, **kwargs)
 
-        # If there was an error in basic perception, return it
+        # If there was an error during basic perception, return it
         if "error" in perception_result:
             return perception_result
 
@@ -1342,7 +1342,7 @@ class PerceptionCore(CognitiveModuleBase):
                         # Fall back to rule-based classification
                         classification.update(self._rule_based_classification(query, perception_result))
                 else:
-                    # Non-string input, use rule-based
+                    # For non-string input, use rule-based processing
                     classification.update(self._rule_based_classification(query, perception_result))
             except Exception as e:
                 self.logger.error(f"Error in LLM classification: {e}")

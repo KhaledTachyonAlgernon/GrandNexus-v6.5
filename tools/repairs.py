@@ -14,7 +14,7 @@ def r2_syntax():
     lines = read(p).split("\n")
     assert lines[1685].startswith("            if all(\"attributes\" in entity"), lines[1685][:60]
     assert lines[1829].strip().startswith("# Use LLM for more sophisticated analogical")
-    reindent(p, 1686, 1829, -4)   # bloc sur-indenté de 4 (un `try:` perdu)
+    reindent(p, 1686, 1829, -4)   # block over-indented by 4 (a missing `try:`)
 
 def r3_dataclasses():
     """Champs obligatoires après des champs par défaut : kw_only=True (Python 3.10+),
@@ -64,7 +64,7 @@ class LearningResult:
     duration: float = 0.0
     timestamp: float = field(default_factory=time.time)
 ''')
-    # create_pattern_mining existait mais était indentée DANS PatternMiningModule
+    # create_pattern_mining existed but was indented inside PatternMiningModule
     p = "grandnexus/graph/pattern_mining.py"
     lines = read(p).split("\n")
     i = next(k for k, l in enumerate(lines) if l.startswith("    def create_pattern_mining("))
@@ -93,25 +93,25 @@ def r8_cognitive_contract():
               "    CognitionManagerBase as CognitionManager,  # contrat : casse l'import circulaire\n"
               "    CognitiveModuleBase, CognitiveProcessType, CognitiveMode,\n"
               "    CognitiveContext, CognitiveRequest, CognitiveResult,\n)" + s[end:])
-    # PerceptionCore : le manager lui passe nexus_core
+    # PerceptionCore: the manager passes nexus_core to it
     p = "grandnexus/cognition/perception/perception_core.py"
     replace_once(p, "                 llm_engine: Optional[LLMEngine] = None):\n        \"\"\"\n        Initialize the Perception Core.",
                  "                 llm_engine: Optional[LLMEngine] = None,\n                 nexus_core: Any = None,\n                 **kwargs):\n        \"\"\"\n        Initialize the Perception Core.")
     replace_once(p, "        self.cognition_manager = cognition_manager\n        self.working_memory = working_memory\n        self.semantic_memory = semantic_memory\n        self.llm_engine = llm_engine\n",
                  "        self.cognition_manager = cognition_manager\n        self.working_memory = working_memory\n        self.semantic_memory = semantic_memory\n        self.llm_engine = llm_engine\n        self.nexus_core = nexus_core\n")
-    # ReasoningCore : le manager lui passe nexus_core et episodic_memory
+    # ReasoningCore: the manager passes nexus_core and episodic_memory to it
     p = "grandnexus/cognition/reasoning/reasoning_core.py"
     replace_once(p, "                 llm_engine: Optional[LLMEngine] = None):\n        \"\"\"\n        Initialize the Reasoning Core.",
                  "                 llm_engine: Optional[LLMEngine] = None,\n                 episodic_memory: Any = None,\n                 nexus_core: Any = None,\n                 **kwargs):\n        \"\"\"\n        Initialize the Reasoning Core.")
     replace_once(p, "        self.graph_engine = graph_engine\n        self.llm_engine = llm_engine\n\n        # Logger setup\n        self.logger = logging.getLogger(\"ReasoningCore\")",
                  "        self.graph_engine = graph_engine\n        self.llm_engine = llm_engine\n        self.episodic_memory = episodic_memory\n        self.nexus_core = nexus_core\n\n        # Logger setup\n        self.logger = logging.getLogger(\"ReasoningCore\")")
-    # ReinforcementLearning : le manager lui passe learning_core
+    # ReinforcementLearning: the manager passes learning_core to it
     p = "grandnexus/cognition/learning/reinforcement.py"
     replace_once(p, "                semantic_memory: Optional[SemanticMemory] = None):\n        \"\"\"\n        Initialize the reinforcement learning module.",
                  "                semantic_memory: Optional[SemanticMemory] = None,\n                learning_core: Any = None):\n        \"\"\"\n        Initialize the reinforcement learning module.")
     s = read(p); i = s.index("class ReinforcementLearning"); j = s.index('"""', s.index("def __init__", i)); j = s.index('"""', j + 3) + 3
     write(p, s[:j] + "\n        self.learning_core = learning_core  # réparation 6.5" + s[j:])
-    # PlanningModule : le manager appelle initialize()
+    # PlanningModule: the manager calls initialize()
     append("grandnexus/cognition/reasoning/planning.py", '''
 # --- réparation 6.5 : CognitionManager appelle initialize() avant start()
 def _planning_initialize(self) -> bool:
@@ -121,7 +121,7 @@ def _planning_initialize(self) -> bool:
 if not hasattr(PlanningModule, "initialize"):
     PlanningModule.initialize = _planning_initialize
 ''')
-    # CognitionManager hérite du socle contractuel et ré-exporte le contrat
+    # CognitionManager inherits from the contractual base and re-exports the contract
     p = "grandnexus/cognition/cognition_manager.py"
     replace_once(p, "\nclass CognitionManager:", "\nfrom grandnexus.cognition.contracts import (  # réparation 6.5\n"
                  "    CognitionManagerBase, CognitiveModuleBase, CognitiveProcessType, CognitiveMode,\n"

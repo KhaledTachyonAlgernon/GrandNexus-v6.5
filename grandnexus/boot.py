@@ -133,7 +133,7 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
         if gn.core is not None:
             _step(gn, "enregistrement dans NexusCore", gn.cognition._register_with_nexus_core, verbose)
         def _share_graph():
-            # un seul graphe pour tout le système : injecté là où le manager n'en a pas passé
+            # a single graph for the whole system: injected where the manager didn't provide one
             n = 0
             for name, mod in gn.modules().items():
                 if hasattr(mod, "graph_engine") and getattr(mod, "graph_engine") is None:

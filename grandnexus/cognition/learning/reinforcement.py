@@ -43,7 +43,7 @@ try:
 except ImportError:
     HAS_TORCH = False
 
-    class nn:  # réparation 6.5 : repli sans PyTorch (annotations nn.Module)
+    class nn:  # fix 6.5: fallback without PyTorch (nn.Module annotations)
         Module = object
 
 # Algorithm types
@@ -334,7 +334,7 @@ class ReinforcementLearning:
             working_memory: Reference to working memory (for active learning processes)
             semantic_memory: Reference to semantic memory (for storing learned policies)
         """
-        self.learning_core = learning_core  # réparation 6.5
+        self.learning_core = learning_core  # fix 6.5
         self.logger = logging.getLogger("GrandNexus.Learning.Reinforcement")
 
         # Store configuration
@@ -1648,5 +1648,5 @@ class ReinforcementLearning:
             self.exploration_rate * self.config.exploration_decay
         )
 
-# --- réparation 6.5 : alias du nom attendu par les autres modules
+# --- fix 6.5: alias of the name expected by other modules
 ReinforcementLearner = ReinforcementLearning

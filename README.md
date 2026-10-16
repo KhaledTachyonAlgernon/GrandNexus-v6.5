@@ -1,106 +1,106 @@
 # GrandNexus 6.5
 
-GrandNexus est une architecture cognitive modulaire inspirée des systèmes biologiques et organiques. Elle combine orchestration de modules, mémoires hiérarchiques, graphe de connaissances, perception, raisonnement, apprentissage et métacognition.
+GrandNexus is a modular cognitive architecture inspired by biological and organic systems. It combines module orchestration, hierarchical memories, a knowledge graph, perception, reasoning, learning, and metacognition.
 
-Le projet se présente comme un **connexum entre IA** : un cadre expérimental pouvant servir de mémoire contextuelle pour un LLM, de cerveau numérique analytique ou de plateforme de coordination entre modules spécialisés.
+The project positions itself as a **nexus between AIs**: an experimental framework that can serve as contextual memory for an LLM, as an analytical digital brain, or as a coordination platform between specialized modules.
 
-> **État du projet :** GrandNexus 6.5 est une version de réparation et d’intégration de la base 6.4. Les tests d’importation et de démarrage passent, mais certaines capacités cognitives restent expérimentales. Consultez [`CARNET_DE_BORD.md`](CARNET_DE_BORD.md) pour le diagnostic détaillé.
+> **Project status:** GrandNexus 6.5 is a repair and integration release of the 6.4 base. Import and startup tests pass, but some cognitive capabilities remain experimental. See [`CARNET_DE_BORD.md`](CARNET_DE_BORD.md) for the detailed diagnosis.
 
-## Sommaire
+## Contents
 
-- [Fonctionnalités](#fonctionnalités)
+- [Features](#fonctionnalités)
 - [Architecture](#architecture)
-- [Prérequis](#prérequis)
+- [Prerequisites](#prérequis)
 - [Installation](#installation)
-- [Vérifier l’installation](#vérifier-linstallation)
-- [Utilisation rapide](#utilisation-rapide)
-- [Démarrer le système](#démarrer-le-système)
+- [Verify installation](#vérifier-linstallation)
+- [Quick start](#utilisation-rapide)
+- [Start the system](#démarrer-le-système)
 - [Tests](#tests)
-- [Utilisation dans Google Colab](#utilisation-dans-google-colab)
+- [Using in Google Colab](#utilisation-dans-google-colab)
 - [Configuration](#configuration)
-- [Développement](#développement)
-- [Limites connues](#limites-connues)
-- [Historique Git](#historique-git)
-- [Licence](#licence)
+- [Development](#développement)
+- [Known limitations](#limites-connues)
+- [Git history](#historique-git)
+- [License](#licence)
 
-## Fonctionnalités
+## Features
 
-- **NexusCore** : orchestration centrale, registre de modules, cycle de vie et bus de messages.
-- **Mémoire hiérarchique** : mémoire de travail, mémoire épisodique et mémoire sémantique.
-- **Graphe de connaissances** : moteur de graphe en mémoire et gestionnaire de modules de graphe.
-- **Cognition hybride** : perception, raisonnement symbolique, raisonnement neuronal/hybride, apprentissage et métacognition.
-- **Routage par capacités** : les processus cognitifs sont dirigés vers des modules spécialisés selon leur capacité et leur priorité.
-- **Récupération d’erreurs** : surveillance de l’état des modules et stratégies de récupération intégrées à l’orchestration.
-- **Tests reproductibles** : tests d’importation module par module et test d’intégration du câblage complet.
+- **NexusCore**: central orchestration, module registry, lifecycle and message bus.
+- **Hierarchical memory**: working memory, episodic memory and semantic memory.
+- **Knowledge graph**: in-memory graph engine and graph module manager.
+- **Hybrid cognition**: perception, symbolic reasoning, neural/hybrid reasoning, learning and metacognition.
+- **Capability-based routing**: cognitive processes are directed to specialized modules based on their capability and priority.
+- **Error recovery**: monitoring module health and recovery strategies integrated into the orchestration.
+- **Reproducible tests**: module-by-module import tests and a full wiring integration test.
 
 ## Architecture
 
 ```text
 GrandNexus/
 ├── grandnexus/
-│   ├── boot.py                  # Assemblage et démarrage du système
-│   ├── core/                    # NexusCore, registre et bus d’événements
-│   ├── memory/                  # Mémoires de travail, sémantique et épisodique
-│   ├── graph/                   # Graphe de connaissances et gestionnaire de modules
+│   ├── boot.py                  # Assembly and system startup
+│   ├── core/                    # NexusCore, registry and event bus
+│   ├── memory/                  # Working, semantic, and episodic memories
+│   ├── graph/                   # Knowledge graph and module manager
 │   ├── cognition/
-│   │   ├── perception/          # Analyse et classification des entrées
-│   │   ├── reasoning/           # Raisonnement symbolique et hybride
-│   │   ├── learning/            # Apprentissage et motivation intrinsèque
-│   │   ├── metacognition/       # Surveillance, confiance, adaptation et réflexion
-│   │   └── cognition_manager.py # Orchestration des sous-modules cognitifs
-│   ├── computation/             # Gestion des ressources
-│   └── llm_interface/           # Interfaces et modèles de prompts pour LLM
+│   │   ├── perception/          # Analysis and classification of inputs
+│   │   ├── reasoning/           # Symbolic and hybrid reasoning
+│   │   ├── learning/            # Learning and intrinsic motivation
+│   │   ├── metacognition/       # Monitoring, confidence, adaptation, and reflection
+│   │   └── cognition_manager.py # Orchestration of cognitive submodules
+│   ├── computation/             # Resource management
+│   └── llm_interface/           # Interfaces and prompt templates for LLMs
 ├── tools/
-│   ├── smoke_test.py            # Vérification des imports
-│   ├── integration_test.py      # Test du démarrage et du routage
-│   └── run_all.sh               # Script historique de réparation
-├── archive/                     # Versions et expérimentations historiques
+│   ├── smoke_test.py            # Import checks
+│   ├── integration_test.py      # Startup and routing test
+│   └── run_all.sh               # Legacy repair script
+├── archive/                     # Historical versions and experiments
 ├── ARCHITECTURE.txt
 ├── CARNET_DE_BORD.md
 ├── LICENSE
 └── README.md
 ```
 
-Le point d’entrée recommandé est `grandnexus.boot.boot`. Cette fonction assemble les composants dans l’ordre suivant :
+The recommended entry point is `grandnexus.boot.boot`. This function assembles the components in the following order:
 
-1. `NexusCore` ;
-2. moteur de graphe ;
-3. mémoires de travail, sémantique et épisodique ;
-4. `GraphModuleManager` ;
-5. `CognitionManager` et ses sous-modules ;
-6. voies cognitives et capacités ;
-7. partage du graphe entre les modules.
+1. `NexusCore`;
+2. graph engine;
+3. working, semantic, and episodic memories;
+4. `GraphModuleManager`;
+5. `CognitionManager` and its submodules;
+6. cognitive pathways and capabilities;
+7. graph sharing between modules.
 
-## Prérequis
+## Prerequisites
 
-- Python **3.9 ou supérieur** ;
-- Git, si vous clonez le dépôt ;
-- `psutil` pour l’importation de tous les modules et les tests complets ;
-- SQLite, fourni avec la bibliothèque standard Python.
+- Python **3.9 or higher**;
+- Git, if you clone the repository;
+- `psutil` for importing all modules and running full tests;
+- SQLite, provided with the Python standard library.
 
-La base actuelle ne contient pas encore de `pyproject.toml` ni de `requirements.txt`. La majorité du code utilise la bibliothèque standard Python. Certains composants disposent de replis lorsque des bibliothèques scientifiques optionnelles ne sont pas disponibles.
+The current base does not yet include a `pyproject.toml` or `requirements.txt`. Most of the code uses Python's standard library. Some components include fallbacks when optional scientific libraries are not available.
 
 ## Installation
 
-### Depuis GitHub
+### From GitHub
 
 ```bash
 git clone https://github.com/KhaledTachyonAlgernon/GrandNexus-v6.5.git
 cd GrandNexus-v6.5
 ```
 
-Pour installer la dépendance nécessaire aux tests complets :
+To install the dependency required for full tests:
 
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate       # Windows : .venv\Scripts\activate
+source .venv/bin/activate       # Windows: .venv\Scripts\activate
 python -m pip install --upgrade pip
 python -m pip install psutil
 ```
 
-### Depuis une archive
+### From an archive
 
-Décompressez l’archive, puis placez-vous à la racine du projet :
+Extract the archive, then change to the project root:
 
 ```bash
 unzip GrandNexus_v6.5.zip
@@ -108,30 +108,30 @@ cd GrandNexus
 python3 -m pip install --user psutil
 ```
 
-## Vérifier l’installation
+## Verify the installation
 
-Depuis la racine du dépôt, exécutez le smoke test :
+From the repository root, run the smoke test:
 
 ```bash
 python tools/smoke_test.py
 ```
 
-Un environnement correctement préparé doit afficher :
+A correctly prepared environment should display:
 
 ```text
-==> 55/55 modules importables
+==> 55/55 importable modules
 ```
 
-Si vous utilisez un environnement virtuel, vérifiez que la commande `python` correspond bien à celui-ci :
+If you're using a virtual environment, make sure the `python` command points to it:
 
 ```bash
 python --version
 python -c "import psutil; print(psutil.__version__)"
 ```
 
-## Utilisation rapide
+## Quick start
 
-Le projet n’est pas encore distribué comme paquet Python installé globalement. Depuis la racine du dépôt, Python peut importer directement le package :
+The project is not yet distributed as a globally installed Python package. From the root of the repository, Python can import the package directly:
 
 ```python
 from grandnexus.boot import boot
@@ -149,22 +149,22 @@ print(result.output)
 system.shutdown()
 ```
 
-Depuis un autre répertoire, ajoutez la racine du dépôt à `PYTHONPATH` :
+From another directory, add the repository root to `PYTHONPATH`:
 
 ```bash
 export PYTHONPATH="$(pwd):${PYTHONPATH}"
 ```
 
-ou dans Python :
+or in Python:
 
 ```python
 import sys
 sys.path.insert(0, "/chemin/vers/GrandNexus")
 ```
 
-### Types de processus cognitifs
+### Types of cognitive processes
 
-Les types disponibles sont définis dans `grandnexus.cognition.contracts.CognitiveProcessType`. Par exemple :
+The available types are defined in `grandnexus.cognition.contracts.CognitiveProcessType`. For example:
 
 ```python
 from grandnexus.cognition.contracts import CognitiveProcessType as P
@@ -179,11 +179,11 @@ print(reasoning.output)
 system.shutdown()
 ```
 
-Le résultat exact dépend du module sélectionné et de l’état expérimental des capacités. Utilisez `system.print_report()` pour inspecter chaque étape d’assemblage.
+The exact result depends on the selected module and the experimental status of the capabilities. Use `system.print_report()` to inspect each assembly step.
 
-## Démarrer le système
+## Starting the system
 
-La signature principale est :
+The main signature is:
 
 ```python
 boot(
@@ -195,45 +195,45 @@ boot(
 )
 ```
 
-### Mode laboratoire — recommandé pour commencer
+### Lab mode — recommended for getting started
 
-Par défaut, `start_threads=False`. Les modules sont initialisés sans lancer les boucles de fond, ce qui rend les essais plus déterministes :
+By default, `start_threads=False`. Modules are initialized without starting background loops, which makes tests more deterministic:
 
 ```python
 from grandnexus.boot import boot
 
 system = boot(log_level=30)  # logging.WARNING
 system.print_report()
-# ... expérimentations ...
+# ... experiments ...
 system.shutdown()
 ```
 
-### Mode avec threads de fond
+### Background threads mode
 
-Pour démarrer les boucles de fond du gestionnaire cognitif :
+To start the cognitive manager's background loops:
 
 ```python
 system = boot(start_threads=True, log_level=20)  # logging.INFO
 try:
-    # ... application utilisant GrandNexus ...
+    # ... application using GrandNexus ...
     pass
 finally:
     system.shutdown()
 ```
 
-### Persistance SQLite
+### SQLite Persistence
 
-Par défaut, `boot()` crée une base SQLite temporaire. Pour conserver la base entre deux exécutions :
+By default, `boot()` creates a temporary SQLite database. To keep the database between runs:
 
 ```python
 from grandnexus.boot import boot
 
 system = boot(db_file="data/nexuscore.db")
-# Les informations persistées par NexusCore seront enregistrées dans ce fichier.
+# The data persisted by NexusCore will be stored in this file.
 system.shutdown()
 ```
 
-Créez le dossier parent au préalable si nécessaire :
+Create the parent directory first if necessary:
 
 ```bash
 mkdir -p data
@@ -243,40 +243,40 @@ mkdir -p data
 
 ### Smoke test
 
-Vérifie que les modules principaux peuvent être importés :
+Checks that the main modules can be imported:
 
 ```bash
 python tools/smoke_test.py
 ```
 
-### Test d’intégration
+### Integration test
 
-Vérifie notamment :
+Checks in particular:
 
-- l’initialisation de `NexusCore` ;
-- l’enregistrement des mémoires et des modules ;
-- le graphe partagé ;
-- le démarrage de `CognitionManager` ;
-- les voies de perception, raisonnement, apprentissage et métacognition ;
-- le câblage et le routage des capacités.
+- the initialization of `NexusCore`;
+- the registration of memories and modules;
+- the shared graph;
+- the startup of `CognitionManager`;
+- the perception, reasoning, learning, and metacognition pathways;
+- the wiring and routing of capabilities.
 
 ```bash
 python tools/integration_test.py
 ```
 
-Le test affiche aussi des mesures expérimentales de classification et de routage. Ces mesures sont informatives et ne signifient pas que toutes les capacités cognitives sont déjà calibrées.
+The test also displays experimental classification and routing metrics. These measurements are informational and do not imply that all cognitive capabilities are already calibrated.
 
-Pour exécuter les deux commandes :
+To run both commands:
 
 ```bash
 python tools/smoke_test.py && python tools/integration_test.py
 ```
 
-> `tools/run_all.sh` est un script historique qui rejoue les réparations de la version 6.4. Il modifie l’arbre Git et ne doit pas être exécuté sur `main` sans créer une branche de travail.
+> `tools/run_all.sh` is a legacy script that replays the fixes from version 6.4. It modifies the Git tree and should not be run on `main` without creating a working branch.
 
-## Utilisation dans Google Colab
+## Using Google Colab
 
-Dans une cellule Colab :
+In a Colab cell:
 
 ```python
 !unzip -q -o GrandNexus_v6.5.zip -d /content
@@ -285,7 +285,7 @@ Dans une cellule Colab :
 !python tools/integration_test.py
 ```
 
-Puis, dans une autre cellule :
+Then, in another cell:
 
 ```python
 import sys
@@ -302,9 +302,9 @@ gn.shutdown()
 
 ## Configuration
 
-### Niveau de logs
+### Logging level
 
-Les niveaux standards du module `logging` peuvent être utilisés :
+The standard levels of the `logging` module can be used:
 
 ```python
 import logging
@@ -313,35 +313,35 @@ from grandnexus.boot import boot
 system = boot(log_level=logging.INFO)
 ```
 
-Pour afficher les traces complètes d’une étape de démarrage :
+To display full traces for a boot step:
 
 ```python
 system = boot(verbose=True)
 ```
 
-### Configuration du graphe
+### Graph configuration
 
-Une configuration peut être transmise au gestionnaire de graphe :
+A configuration can be passed to the graph manager:
 
 ```python
 from grandnexus.boot import boot
 
 system = boot(graph_config={
-    # Paramètres spécifiques aux modules de graphe utilisés.
+    # Parameters specific to the graph modules used.
 })
 ```
 
-Les clés reconnues dépendent du moteur de graphe et du `GraphModuleManager` choisis.
+The recognized keys depend on the chosen graph engine and `GraphModuleManager`.
 
-## Développement
+## Development
 
-Avant toute modification, créez une branche de travail :
+Before making any changes, create a working branch:
 
 ```bash
 git switch -c feature/ma-modification
 ```
 
-Après une modification :
+After making a change:
 
 ```bash
 python tools/smoke_test.py
@@ -349,29 +349,29 @@ python tools/integration_test.py
 git diff --check
 ```
 
-Les modules doivent préserver les contrats définis dans `grandnexus/cognition/contracts.py`. Pour comprendre l’état des réparations et les choix d’architecture, lisez :
+Modules must preserve the contracts defined in `grandnexus/cognition/contracts.py`. To understand the state of fixes and the architectural choices, read:
 
 - [`CARNET_DE_BORD.md`](CARNET_DE_BORD.md) ;
 - [`ARCHITECTURE.txt`](ARCHITECTURE.txt) ;
-- les docstrings de `grandnexus/boot.py` et `grandnexus/core/`.
+- the docstrings of `grandnexus/boot.py` and `grandnexus/core/`.
 
-## Limites connues
+## Known limitations
 
-La version 6.5 est fonctionnelle comme base expérimentale, mais plusieurs éléments restent à développer :
+Version 6.5 is functional as an experimental base, but several elements remain to be developed:
 
-- certaines entrées mathématiques et certains extraits de code sont encore classés `TEXT` par le module de perception ;
-- le routage par priorité ne dépasse pas encore clairement le témoin aléatoire sur tous les exemples ;
-- les threads de fond (`boot(start_threads=True)`) nécessitent davantage de tests ;
-- plusieurs modules avancés restent accessibles par appel direct ou bus d’événements plutôt que par les capacités déclarées ;
-- des doublons expérimentaux sont conservés côte à côte (`graph_engine_v1`, `llm_engine_lite`, `resource_manager_ml`) ;
-- les composants avancés de l’archive ne sont pas branchés dans le démarrage principal ;
-- il n’existe pas encore de packaging Python officiel ni de liste de dépendances complète.
+- some mathematical entries and some code snippets are still classified as `TEXT` by the perception module;
+- priority routing does not yet clearly outperform the random baseline on all examples;
+- background threads (`boot(start_threads=True)`) require further testing;
+- several advanced modules are still accessible via direct calls or the event bus rather than via declared capabilities;
+- experimental duplicates are kept side-by-side (`graph_engine_v1`, `llm_engine_lite`, `resource_manager_ml`);
+- advanced archive components are not integrated into the main startup;
+- there is not yet official Python packaging nor a complete dependency list.
 
-Ces limites sont décrites plus précisément dans [`CARNET_DE_BORD.md`](CARNET_DE_BORD.md).
+These limitations are described in more detail in [`CARNET_DE_BORD.md`](CARNET_DE_BORD.md).
 
-## Historique Git
+## Git history
 
-La branche `main` contient la version réparée et intégrée. Les tags principaux sont :
+The `main` branch contains the repaired and integrated version. The main tags are:
 
 ```bash
 git log --oneline
@@ -380,9 +380,9 @@ git show v6.4-raw
 git show v6.5-repair
 ```
 
-- `v6.4-raw` : extraction brute servant de témoin ;
-- `v6.5-repair` : version réparée et documentée.
+- `v6.4-raw`: raw extraction serving as a reference;
+- `v6.5-repair`: repaired and documented version.
 
-## Licence
+## License
 
-Ce projet est distribué sous [Apache License 2.0](LICENSE).
+This project is distributed under the [Apache License 2.0](LICENSE).

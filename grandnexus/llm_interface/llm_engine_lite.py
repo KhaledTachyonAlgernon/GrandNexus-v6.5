@@ -1,6 +1,6 @@
 # llm_interface/llm_engine.py
 
-import uuid  # réparation 6.5 : fourni avant par l'espace de noms partagé du notebook
+import uuid  # fix 6.5: previously provided by the notebook's shared namespace
 import logging
 import threading
 import time
@@ -11,17 +11,17 @@ from enum import Enum
 
 class LLMProvider(str, Enum):
     """Types de providers LLM supportés"""
-    LOCAL = "local"          # Modèle local (ex: via transformers)
+    LOCAL = "local"          # Local model (e.g., via transformers)
     OPENAI = "openai"        # API OpenAI
     ANTHROPIC = "anthropic"  # API Anthropic/Claude
     DEEPSEEK = "deepseek"    # API DeepSeek
-    CUSTOM = "custom"        # Intégration personnalisée
+    CUSTOM = "custom"        # Custom integration
 
 @dataclass
 class LLMConfig:
     """Configuration pour le LLMEngine"""
     provider: LLMProvider = LLMProvider.LOCAL
-    model_name: str = "text-embedding-3-small"  # Nom du modèle par défaut
+    model_name: str = "text-embedding-3-small"  # Default model name
     api_key: Optional[str] = None
     temperature: float = 0.7
     max_tokens: int = 1024
@@ -155,9 +155,9 @@ class LLMEngine:
 
     def _init_deepseek_client(self):
         """Initialise le client DeepSeek"""
-        # Implémentation spécifique à DeepSeek basée sur leur API/SDK
+        # DeepSeek-specific implementation based on their API/SDK
         try:
-            # Exemple fictif - à adapter selon l'API réelle de DeepSeek
+            # Fictitious example - adapt to DeepSeek's real API
             import deepseek
             self.deepseek_client = deepseek.Client(api_key=self.config.api_key)
             self.active_clients["deepseek"] = self.deepseek_client
@@ -167,7 +167,7 @@ class LLMEngine:
 
     def _init_custom_client(self):
         """Initialise un client personnalisé"""
-        # Implémentation pour intégration personnalisée
+        # Implementation for custom integration
         self.active_clients["custom"] = True
 
     def _init_fallback_provider(self, provider: LLMProvider):
@@ -196,7 +196,7 @@ class LLMEngine:
 
             start_time = time.time()
 
-            # Enrichir le prompt avec le context si synergy activée
+            # Enrich the prompt with context if synergy is enabled
             if self.config.synergy_with_memory:
                 enriched_prompt = self._enrich_prompt_with_memory(request.prompt, request.context)
                 request.prompt = enriched_prompt
@@ -345,8 +345,8 @@ class LLMEngine:
         if not client:
             raise Exception("DeepSeek client not initialized")
 
-        # Implémentation spécifique à l'API DeepSeek
-        # À adapter selon la documentation de leur API
+        # DeepSeek API-specific implementation
+        # Adapt according to their API documentation
         start_time = time.time()
 
         response = client.generate(
@@ -367,10 +367,10 @@ class LLMEngine:
 
     def _call_custom_provider(self, request: LLMRequest) -> LLMResponse:
         """Appelle un provider personnalisé"""
-        # Implémentation spécifique pour intégration personnalisée
+        # Implementation specific to custom integration
         start_time = time.time()
 
-        # Logique personnalisée d'appel LLM ici
+        # Custom LLM call logic here
         response_text = f"Custom provider response for: {request.prompt[:30]}..."
 
         end_time = time.time()
@@ -393,7 +393,7 @@ class LLMEngine:
             response = self._call_provider(request)
             return response
         finally:
-            # Restaurer le provider original
+            # Restore the original provider
             self.config.provider = original_provider
 
     def create_embedding(self, text: str) -> np.ndarray:
@@ -435,7 +435,7 @@ class LLMEngine:
             raise Exception("OpenAI client not initialized")
 
         response = client.embeddings.create(
-            model="text-embedding-3-small",  # ou autre modèle d'embedding
+            model="text-embedding-3-small",  # or another embedding model
             input=text
         )
 
@@ -448,7 +448,7 @@ class LLMEngine:
 
             # Lazy initialize embedding model if needed
             if not hasattr(self, "embedding_model"):
-                model_name = "all-MiniLM-L6-v2"  # Modèle léger par défaut
+                model_name = "all-MiniLM-L6-v2"  # Default lightweight model
                 self.embedding_model = SentenceTransformer(model_name)
 
             embedding = self.embedding_model.encode(text)
@@ -470,26 +470,26 @@ class LLMEngine:
 
         # Working Memory
         if self.working_memory:
-            # On pourrait obtenir les éléments récents ou correspondant à des critères
-            memory_items = []  # Placeholder pour la vraie implémentation
+            # We could fetch recent items or items matching criteria
+            memory_items = []  # Placeholder for the real implementation
             if memory_items:
                 enriched_parts.append("\nRelevant working memory:\n" + "\n".join(str(item) for item in memory_items))
 
-        # Semantic Memory - concepts liés au contexte
+        # Semantic Memory - context-related concepts
         if self.semantic_memory and context.get("query_concepts"):
-            # On pourrait chercher des concepts reliés au prompt
-            concepts = []  # Placeholder pour la vraie implémentation
+            # We could search for concepts related to the prompt
+            concepts = []  # Placeholder for the real implementation
             if concepts:
                 enriched_parts.append("\nRelevant concepts:\n" + "\n".join(str(concept) for concept in concepts))
 
-        # Episodic Memory - épisodes pertinents
+        # Episodic Memory - relevant episodes
         if self.episodic_memory and context.get("query_episodes"):
-            # On pourrait chercher des épisodes similaires ou pertinents
-            episodes = []  # Placeholder pour la vraie implémentation
+            # We could search for similar or relevant episodes
+            episodes = []  # Placeholder for the real implementation
             if episodes:
                 enriched_parts.append("\nRelevant episodes:\n" + "\n".join(str(episode) for episode in episodes))
 
-        # S'il y a des enrichissements, les ajouter au prompt
+        # If there are enrichments, add them to the prompt
         if enriched_parts:
             enriched_prompt = prompt + "\n\nContext Information:" + "".join(enriched_parts)
             return enriched_prompt
@@ -504,17 +504,17 @@ class LLMEngine:
         if not self.config.synergy_with_graph or not self.graph_engine:
             return response
 
-        # Exemple d'enrichissement (à adapter selon vos besoins réels)
+        # Enrichment example (adapt to your actual needs)
         try:
-            # Extraire des entités clés de la réponse
+            # Extract key entities from the response
             entities = self._extract_entities(response.text)
 
             if entities:
-                # Rechercher ces entités dans le graphe
+                # Search for these entities in the graph
                 graph_data = self._query_graph_for_entities(entities)
 
                 if graph_data:
-                    # Stocker les informations du graphe dans parsed_data
+                    # Store the graph information in parsed_data
                     if response.parsed_data is None:
                         response.parsed_data = {}
                     response.parsed_data["graph_enrichment"] = graph_data
@@ -529,11 +529,11 @@ class LLMEngine:
         Extrait des entités du texte.
         Placeholder pour une implémentation NER plus sophistiquée.
         """
-        # Implémentation simpliste pour l'exemple
+        # Simple implementation for the example
         import re
-        # Cherche les mots commençant par une majuscule qui ne sont pas au début d'une phrase
+        # Look for words starting with a capital letter that are not at the beginning of a sentence
         entities = re.findall(r'(?<![\.\?\!]\s)(?<!\A)([A-Z][a-z]+)', text)
-        return list(set(entities))  # Éliminer les doublons
+        return list(set(entities))  # Remove duplicates
 
     def _query_graph_for_entities(self, entities: List[str]) -> Dict[str, Any]:
         """
@@ -545,17 +545,17 @@ class LLMEngine:
         result = {}
 
         for entity in entities:
-            # Exemple simplifié - à adapter selon votre API graph_engine
+            # Simplified example - adapt to your graph_engine API
             try:
-                # Rechercher l'entité dans le graphe
+                # Search for the entity in the graph
                 nodes = self.graph_engine.find_nodes({"name": entity})
 
                 if nodes:
                     node_id = nodes[0]
-                    # Obtenir les relations pour ce nœud
+                    # Get the relations for this node
                     relations = self.graph_engine.get_relations(node_id)
 
-                    # Stocker dans le résultat
+                    # Store in the result
                     result[entity] = {
                         "node_id": node_id,
                         "relations": relations
@@ -567,7 +567,7 @@ class LLMEngine:
 
     def _create_cache_key(self, request: LLMRequest) -> str:
         """Crée une clé de cache unique pour une requête"""
-        # Générer une clé basée sur les paramètres essentiels
+        # Generate a key based on the essential parameters
         key_parts = [
             request.prompt,
             str(request.temperature or self.config.temperature),
@@ -579,10 +579,10 @@ class LLMEngine:
 
     def _add_to_cache(self, cache_key: str, response: LLMResponse) -> None:
         """Ajoute une réponse au cache"""
-        # Limiter la taille du cache si nécessaire
+        # Limit the cache size if necessary
         if self.config.cache_size > 0 and len(self.response_cache) >= self.config.cache_size:
-            # Stratégie simple: supprimer une entrée aléatoire
-            # Une stratégie LRU serait plus efficace en pratique
+            # Simple strategy: remove a random entry
+            # An LRU strategy would be more efficient in practice
             if self.response_cache:
                 self.response_cache.pop(next(iter(self.response_cache)))
 
@@ -597,7 +597,7 @@ class LLMEngine:
             return {}
 
         try:
-            # Importer dynamiquement le parser approprié
+            # Dynamically import the appropriate parser
             parser_module = __import__("llm_interface.response_parser", fromlist=["parse_" + parser_type])
             parser_func = getattr(parser_module, "parse_" + parser_type, None)
 

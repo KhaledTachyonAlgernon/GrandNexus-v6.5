@@ -14,34 +14,34 @@ def parse_concept_definition(response: str) -> Dict[str, Any]:
        "attributes": [],
        "related_concepts": [],
        "examples": [],
-       "confidence": 0.8  # Valeur par défaut
+       "confidence": 0.8  # Default value
    }
 
-   # Recherche de la définition principale
+   # Search for the main definition
    definition_match = re.search(r"(definition|meaning):\s*([^\n]+)", response, re.IGNORECASE)
    if definition_match:
        result["definition"] = definition_match.group(2).strip()
    else:
-       # Essayer de prendre la première phrase significative
+       # Try to take the first meaningful sentence
        sentences = re.split(r'[.!?]', response)
        if sentences:
            result["definition"] = sentences[0].strip()
 
-   # Recherche d'attributs/propriétés
+   # Search for attributes/properties
    attr_match = re.search(r"(attributes|properties|characteristics):(.*?)(?:\n\n|\n[A-Z]|$)",
                           response, re.IGNORECASE | re.DOTALL)
    if attr_match:
        attr_text = attr_match.group(2).strip()
-       # Extraire les éléments de liste
+       # Extract list items
        attributes = re.findall(r"[-•*]\s*([^\n]+)", attr_text)
        if attributes:
            result["attributes"] = [attr.strip() for attr in attributes]
        else:
-           # Séparer par points-virgules ou virgules si pas de formatage en liste
+           # Split by semicolons or commas if not formatted as a list
            attributes = re.split(r'[;,]', attr_text)
            result["attributes"] = [attr.strip() for attr in attributes if attr.strip()]
 
-   # Recherche de concepts liés
+   # Search for related concepts
    related_match = re.search(r"(related concepts|related categories|similar to):(.*?)(?:\n\n|\n[A-Z]|$)",
                              response, re.IGNORECASE | re.DOTALL)
    if related_match:
@@ -78,14 +78,14 @@ def parse_relation_validation(response: str) -> Dict[str, Any]:
        "explanation": ""
    }
 
-   # Recherche si la relation est valide (oui/non)
+   # Check if the relation is valid (yes/no)
    valid_match = re.search(r"(valid|relationship is valid|is valid):\s*(yes|no|true|false)",
                            response, re.IGNORECASE)
    if valid_match:
        valid_text = valid_match.group(2).lower()
        result["is_valid"] = valid_text in ["yes", "true"]
 
-   # Recherche du niveau de confiance
+   # Search for the confidence level
    conf_match = re.search(r"(confidence|confidence level):\s*([0-9.]+)", response, re.IGNORECASE)
    if conf_match:
        try:
@@ -100,7 +100,7 @@ def parse_relation_validation(response: str) -> Dict[str, Any]:
    if expl_match:
        result["explanation"] = expl_match.group(2).strip()
    else:
-       # Chercher des blocs qui pourraient contenir l'explication
+       # Look for blocks that might contain the explanation
        expl_section = re.search(r"(?:^|\n)([^:]+(?:\n[^:]+)+)", response)
        if expl_section:
            result["explanation"] = expl_section.group(1).strip()
@@ -118,25 +118,25 @@ def parse_chain_of_thought(response: str) -> Dict[str, Any]:
        "confidence": 0.0
    }
 
-   # Extraire les étapes numérotées
+   # Extract numbered steps
    steps = re.findall(r"(?:\n|\A)(\d+)\.\s+([^\n]+)(?:\n|$)", response)
    if steps:
        result["steps"] = [step[1].strip() for step in steps]
 
-   # Chercher la conclusion
+   # Look for the conclusion
    conclusion_match = re.search(r"(?:conclusion|therefore|thus|in summary|to summarize):\s*([^\n]+)",
                                response, re.IGNORECASE)
    if conclusion_match:
        result["conclusion"] = conclusion_match.group(1).strip()
    else:
-       # Prendre la dernière phrase ou le dernier paragraphe comme conclusion
+       # Use the last sentence or paragraph as the conclusion
        paragraphs = response.split("\n\n")
        if paragraphs:
            last_para = paragraphs[-1].strip()
            if last_para and not any(last_para.startswith(f"{i}.") for i in range(1, 10)):
                result["conclusion"] = last_para
 
-   # Chercher le niveau de confiance
+   # Look for the confidence level
    conf_match = re.search(r"(confidence|certainty):\s*([0-9.]+)", response, re.IGNORECASE)
    if conf_match:
        try:
@@ -144,12 +144,12 @@ def parse_chain_of_thought(response: str) -> Dict[str, Any]:
            if 0 <= conf_value <= 1:
                result["confidence"] = conf_value
            else:
-               # Normaliser si la confiance est exprimée en pourcentage
+               # Normalize if the confidence is expressed as a percentage
                result["confidence"] = min(conf_value / 100, 1.0)
        except ValueError:
            pass
    else:
-       # Estimer la confiance en fonction des mots-clés
+       # Estimate confidence based on keywords
        confidence_words = {
            "certain": 1.0, "definitely": 1.0, "absolutely": 1.0,
            "likely": 0.8, "probably": 0.7, "most likely": 0.8,
@@ -168,7 +168,7 @@ def parse_structured_json(response: str) -> Dict[str, Any]:
    Tente d'extraire un objet JSON structuré de la réponse.
    Robuste aux divers formats ou textes additionnels.
    """
-   # Rechercher un bloc de code JSON encadré par ```json...```
+   # Look for a JSON code block framed by ```json...```
    json_block_match = re.search(r'```(?:json)?\s*({[\s\S]*?})\s*```', response)
    if json_block_match:
        json_str = json_block_match.group(1)
@@ -177,7 +177,7 @@ def parse_structured_json(response: str) -> Dict[str, Any]:
        except json.JSONDecodeError:
            pass
 
-   # Chercher un bloc qui ressemble à du JSON même sans backticks
+   # Look for a block that looks like JSON even without backticks
    json_obj_match = re.search(r'({[\s\S]*})', response)
    if json_obj_match:
        json_str = json_obj_match.group(1)
@@ -186,11 +186,11 @@ def parse_structured_json(response: str) -> Dict[str, Any]:
        except json.JSONDecodeError:
            pass
 
-   # Dernier recours: essayer de traiter toute la réponse comme du JSON
+   # Last resort: try to treat the entire response as JSON
    try:
        return json.loads(response)
    except json.JSONDecodeError:
-       # Échec de l'extraction - renvoyer un dictionnaire vide
+       # Extraction failed - return an empty dictionary
        return {}
 
 def parse_entity_extraction(response: str) -> List[Dict[str, Any]]:
@@ -199,7 +199,7 @@ def parse_entity_extraction(response: str) -> List[Dict[str, Any]]:
    """
    entities = []
 
-   # Essayer d'abord de parser un JSON structuré
+   # First try parsing structured JSON
    try:
        json_data = parse_structured_json(response)
        if isinstance(json_data, dict) and "entities" in json_data:
@@ -209,18 +209,18 @@ def parse_entity_extraction(response: str) -> List[Dict[str, Any]]:
    except Exception:
        pass
 
-   # Rechercher des sections d'entités
+   # Look for entity sections
    entity_sections = re.findall(r"(?:^|\n)(?:Entity|Name):\s*([^\n]+)(?:\n(?:[^:\n]+:)?[^\n]*)*", response)
 
    for section in entity_sections:
        entity = {"name": section.strip(), "type": "UNKNOWN", "attributes": {}}
 
-       # Chercher le type
+       # Look for the type
        type_match = re.search(r"Type:\s*([^\n]+)", section)
        if type_match:
            entity["type"] = type_match.group(1).strip()
 
-       # Chercher les attributs
+       # Look for attributes
        attr_matches = re.findall(r"([A-Za-z0-9_]+):\s*([^\n]+)", section)
        for attr_name, attr_value in attr_matches:
            if attr_name.lower() not in ["entity", "name", "type"]:
@@ -228,7 +228,7 @@ def parse_entity_extraction(response: str) -> List[Dict[str, Any]]:
 
        entities.append(entity)
 
-   # Si aucune entité n'a été trouvée, essayer une approche plus simple
+   # If no entity was found, try a simpler approach
    if not entities:
        simple_entities = re.findall(r"[-•*]\s*([^\n:]+)(?:\s*\(([^)]+)\))?", response)
        for entity_name, entity_type in simple_entities:
@@ -252,12 +252,12 @@ def parse_classification(response: str) -> Dict[str, Any]:
        "explanation": ""
    }
 
-   # Recherche de la classe
+    # Search for the class
    class_match = re.search(r"(?:class|category|classification|label):\s*([^\n.]+)", response, re.IGNORECASE)
    if class_match:
        result["class"] = class_match.group(1).strip()
 
-   # Recherche de la probabilité
+    # Search for the probability
    prob_match = re.search(r"(?:probability|confidence|certainty):\s*([0-9.]+)(?:%|)", response, re.IGNORECASE)
    if prob_match:
        try:
@@ -289,13 +289,13 @@ def parse_math_expression_interpretation(response: str) -> Dict[str, Any]:
        "confidence": 0.0
    }
 
-   # Extraire l'interprétation principale
+    # Extract the primary interpretation
    interp_match = re.search(r"(?:interpretation|meaning|represents):\s*(.+?)(?:\n\n|\n[A-Z]|$)",
                            response, re.IGNORECASE | re.DOTALL)
    if interp_match:
        result["interpretation"] = interp_match.group(1).strip()
 
-   # Extraire les variables
+    # Extract variables
    vars_section = re.search(r"(?:variables|where|symbols):\s*((?:[^\n]+\n?)+)", response, re.IGNORECASE)
    if vars_section:
        var_defs = re.findall(r"([a-zA-Z0-9_]+)\s*(?:is|represents|=|:)\s*([^\n,;]+)[,;]?",
@@ -303,13 +303,13 @@ def parse_math_expression_interpretation(response: str) -> Dict[str, Any]:
        for var_name, var_meaning in var_defs:
            result["variables"][var_name.strip()] = var_meaning.strip()
 
-   # Extraire la forme simplifiée
+    # Extract the simplified form
    simple_match = re.search(r"(?:simplified|simplifies to|reduced form):\s*(.+?)(?:\n\n|\n[A-Z]|$)",
                            response, re.IGNORECASE | re.DOTALL)
    if simple_match:
        result["simplified_form"] = simple_match.group(1).strip()
 
-   # Extraire la confiance
+    # Extract confidence
    conf_match = re.search(r"(?:confidence|certainty):\s*([0-9.]+)", response, re.IGNORECASE)
    if conf_match:
        try:
@@ -337,7 +337,7 @@ def parse_code_interpretation(response: str) -> Dict[str, Any]:
    if purpose_match:
        result["purpose"] = purpose_match.group(1).strip()
 
-   # Rechercher les composants clés
+    # Find key components
    comp_match = re.search(r"(?:components|key elements|main parts):(.*?)(?:\n\n|\n[A-Z]|$)",
                          response, re.IGNORECASE | re.DOTALL)
    if comp_match:
@@ -346,11 +346,11 @@ def parse_code_interpretation(response: str) -> Dict[str, Any]:
        if components:
            result["key_components"] = [comp.strip() for comp in components]
        else:
-           # Séparer par points si pas de formatage en liste
+            # Split by periods if not list-formatted
            components = re.split(r'\.', comp_text)
            result["key_components"] = [comp.strip() for comp in components if comp.strip()]
 
-   # Rechercher les problèmes potentiels
+    # Look for potential issues
    issues_match = re.search(r"(?:issues|problems|bugs|concerns):(.*?)(?:\n\n|\n[A-Z]|$)",
                            response, re.IGNORECASE | re.DOTALL)
    if issues_match:
@@ -362,13 +362,13 @@ def parse_code_interpretation(response: str) -> Dict[str, Any]:
            issues = re.split(r'\.', issues_text)
            result["potential_issues"] = [issue.strip() for issue in issues if issue.strip()]
 
-   # Rechercher la complexité
+    # Check for complexity
    complex_match = re.search(r"(?:complexity|efficiency):\s*(.+?)(?:\n\n|\n[A-Z]|$)",
                             response, re.IGNORECASE | re.DOTALL)
    if complex_match:
        result["complexity"] = complex_match.group(1).strip()
 
-   # Rechercher la confiance
+    # Check confidence
    conf_match = re.search(r"(?:confidence|certainty):\s*([0-9.]+)", response, re.IGNORECASE)
    if conf_match:
        try:

@@ -1315,5 +1315,5 @@ class AdaptationEngine:
             # Clear current experiment
             self.current_experiment = None
 
-# --- réparation 6.5 : alias du nom attendu par les autres modules
+# --- fix 6.5: alias for the name expected by other modules
 AdaptationManager = AdaptationEngine
