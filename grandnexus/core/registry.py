@@ -11,7 +11,7 @@ This module implements:
 - Extended metadata handling (version, author, config, etc.)
 """
 
-from collections import deque  # fix 6.5: previously provided by the notebook's shared namespace
+from collections import deque  # réparation 6.5 : fourni avant par l'espace de noms partagé du notebook
 import logging
 import importlib
 import pkgutil

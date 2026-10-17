@@ -622,9 +622,9 @@ class ResourceManager:
                 return False
 
         if self._dras_enabled:
-            # Basic approach: check whether the module's current CPU plus the required CPU would push us over a threshold
+            # Basic approach: we see if the module's CPU + required CPU would push us over some threshold
             module_alloc = self._resource_allocation[task.module_name]
-            # e.g., if the module is allocated 0.3 CPU (30%) and the task requires 0.2, that's 0.5 total vs. 1.0
+            # e.g. if the module is allocated 0.3 CPU (30%), does task require 0.2? Then 0.5 total vs. 1.0
             # This is simplistic. Real DRAS might be more advanced
             hypothetical_cpu_usage = snapshot.cpu_percent + (task.required_resources.get("cpu", 0.0) * 100)
             if hypothetical_cpu_usage > self.config.cpu_soft_limit:
@@ -636,7 +636,7 @@ class ResourceManager:
                 return False
 
             # If passed the checks, we also "account" for the new usage (a naive approach)
-            # In a real system, you might track real-time usage per module
+            # In a real system, you might store real-time usage per module
             # For demonstration, we'll just note the allocated CPU in the dictionary
             module_alloc["cpu"] += task.required_resources.get("cpu", 0)
             module_alloc["memory"] += task.required_resources.get("memory", 0)

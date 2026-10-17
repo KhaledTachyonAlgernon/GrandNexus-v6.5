@@ -1,0 +1,185 @@
+grandnexus/
+└── metacognition/
+    └── explainability_engine/
+        ├── src/
+        │   ├── grandnexus_explainability/
+        │   │   ├── __init__.py
+        │   │   ├── config.py
+        │   │   ├── main.py
+        │   │   ├── service.py
+        │   │   ├── api.py
+        │   │   └── metrics.py
+        │   └── tests/
+        │       ├── test_service.py
+        │       └── test_api.py
+        ├── Dockerfile
+        └── helm/
+            └── explainability-engine/
+                ├── Chart.yaml
+                ├── values.yaml
+                └── templates/deployment.yaml
+
+from pydantic import BaseSettings, Field, HttpUrl
+from typing import Optional
+
+class ExplainabilityConfig(BaseSettings):
+    # LLM backend
+    backend: str = Field("openai", env="EXPL_BACKEND")
+    openai_api_key: Optional[str] = Field(None, env="OPENAI_API_KEY")
+    openai_model: str = Field("gpt-4-turbo", env="OPENAI_MODEL")
+    timeout_s: int = Field(5, env="EXPL_TIMEOUT_S")
+
+    # Circuit breaker
+    cb_max_failures: int = Field(3, env="EXPL_CB_MAX_FAILURES")
+    cb_reset_timeout_s: int = Field(60, env="EXPL_CB_RESET_TIMEOUT_S")
+
+    # API
+    api_host: str = Field("0.0.0.0", env="EXPL_HOST")
+    api_port: int = Field(8081, env="EXPL_PORT")
+
+    class Config:
+        env_file = ".env"
+
+from prometheus_client import Counter, Gauge
+
+REQ_COUNT = Counter("expl_requests_total", "Total explanation requests")
+REQ_FAILURE = Counter("expl_failures_total", "Failed explanation requests")
+LATENCY = Gauge("expl_request_latency_seconds", "Latency per explanation request")
+
+import time, threading
+from typing import Dict, Any
+from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type, RetryError
+from circuitbreaker import circuit, CircuitBreakerError
+import openai
+from .config import ExplainabilityConfig
+from .metrics import REQ_COUNT, REQ_FAILURE, LATENCY
+
+cfg = ExplainabilityConfig()
+
+# Configure OpenAI
+if cfg.backend == "openai":
+    openai.api_key = cfg.openai_api_key
+
+# Circuit breaker decorator
+@circuit(failure_threshold=cfg.cb_max_failures,
+         recovery_timeout=cfg.cb_reset_timeout_s)
+def _call_llm(prompt: str) -> str:
+    resp = openai.ChatCompletion.create(
+        model=cfg.openai_model,
+        messages=[{"role":"user","content":prompt}],
+        timeout=cfg.timeout_s
+    )
+    return resp.choices[0].message.content
+
+@retry(stop=stop_after_attempt(2), wait=wait_fixed(1), retry=retry_if_exception_type(Exception))
+def generate_explanation(context: Dict[str,Any], decision: Dict[str,Any]) -> str:
+    prompt = (
+        f"Context:\n{context}\n\n"
+        f"Decision:\n{decision}\n\n"
+        "Explain why this decision was made."
+    )
+    start = time.time()
+    try:
+        REQ_COUNT.inc()
+        text = _call_llm(prompt)
+        return text
+    except (CircuitBreakerError, RetryError) as e:
+        REQ_FAILURE.inc()
+        return "Explication indisponible pour le moment."
+    finally:
+        LATENCY.set(time.time() - start)
+
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import uvicorn
+from .service import generate_explanation
+from .config import cfg
+
+app = FastAPI(title="ExplainabilityEngine API")
+
+class ExplRequest(BaseModel):
+    context: dict
+    decision: dict
+
+class ExplResponse(BaseModel):
+    explanation: str
+
+@app.post("/explain", response_model=ExplResponse)
+def explain(req: ExplRequest):
+    try:
+        text = generate_explanation(req.context, req.decision)
+        return ExplResponse(explanation=text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def start_api():
+    uvicorn.run(app, host=cfg.api_host, port=cfg.api_port)
+
+import threading
+from .api import start_api
+from .service import cfg
+from .metrics import REQ_COUNT
+
+def main():
+    # Expose metrics on separate port
+    from prometheus_client import start_http_server
+    start_http_server(9091)
+    # Start API
+    threading.Thread(target=start_api, daemon=True).start()
+    # Keep alive
+    import time
+    while True:
+        time.sleep(1)
+
+if __name__ == "__main__":
+    main()
+
+import pytest
+from grandnexus_explainability.service import generate_explanation
+
+def test_generate_explanation_fallback(monkeypatch):
+    # Simuler exception LLM
+    monkeypatch.setattr("grandnexus_explainability.service._call_llm", lambda prompt: (_ for _ in ()).throw(Exception("fail")))
+    res = generate_explanation({"a":1}, {"act":"test"})
+    assert "indisponible" in res
+
+from fastapi.testclient import TestClient
+from grandnexus_explainability.api import app
+
+client = TestClient(app)
+
+def test_api_success(monkeypatch):
+    monkeypatch.setattr("grandnexus_explainability.service.generate_explanation", lambda c,d: "OK")
+    resp = client.post("/explain", json={"context":{}, "decision":{}})
+    assert resp.status_code == 200
+    assert resp.json()["explanation"] == "OK"
+
+FROM python:3.11-slim
+WORKDIR /app
+COPY src/grandnexus_explainability/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY src/grandnexus_explainability /app
+EXPOSE 8081 9091
+CMD ["python","-u","main.py"]
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: explainability-engine
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: explainability-engine } }
+  template:
+    metadata: { labels: { app: explainability-engine } }
+    spec:
+      containers:
+        - name: explain
+          image: registry.example.com/grandnexus/explainability:latest
+          ports:
+            - containerPort: 8081
+            - containerPort: 9091
+          envFrom:
+            - secretRef: { name: grandnexus-secrets }
+            - configMapRef: { name: explainability-config }
+          readinessProbe:
+            httpGet: { path: "/docs", port: 8081 }

@@ -22,7 +22,7 @@ from typing import (
 )
 from collections import defaultdict, deque
 from enum import Enum, auto
-# Add: check if it's coherent
+# Ajout à verifier si il est cohérent
 from grandnexus.graph.graph_engine import AbstractGraphEngine, create_graph_engine, GraphQuery, GraphNode
 
 

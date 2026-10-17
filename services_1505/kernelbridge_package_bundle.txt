@@ -1,0 +1,195 @@
+            initialDelaySeconds: 5; periodSeconds: 10
+
+kernelbridge/
+├── pyproject.toml
+├── src/
+│   └── kernelbridge/
+│       ├── __init__.py
+│       ├── config.py
+│       ├── service.py
+│       ├── metrics.py
+│       └── cli.py
+├── tests/
+│   ├── test_service.py
+│   └── test_cli.py
+├── Dockerfile
+└── .github/
+    └── workflows/
+        └── ci.yml
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kernelbridge"
+version = "0.1.0"
+description = "KernelBridge — hyperviseur récursif & méta-système de NexusCore"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+  "psutil>=5.9.0",
+  "uvicorn[standard]>=0.18.0",
+  "fastapi>=0.85.0",
+  "pydantic>=1.10.0",
+  "prometheus-client>=0.14.0"
+]
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+kernelbridge = "kernelbridge.cli:main"
+
+from pydantic import BaseSettings, Field
+from typing import Optional
+
+class KBConfig(BaseSettings):
+    MAX_CHILDREN: int = Field(4, env="KB_MAX_CHILDREN")
+    STATUS_INTERVAL: float = Field(2.0, env="KB_STATUS_INTERVAL")
+    LOG_LEVEL: str = Field("INFO", env="KB_LOG_LEVEL")
+    class Config:
+        env_file = ".env"
+        validate_all = True
+
+cfg = KBConfig()
+
+from prometheus_client import Counter, Gauge
+
+SPAWN_COUNT = Counter("kb_spawn_total", "Nombre de sous-cœurs spawnés")
+TERMINATE_COUNT = Counter("kb_terminate_total", "Nombre de sous-cœurs terminés")
+CHILD_UPTIME = Gauge("kb_child_uptime_seconds", "Uptime des sous-cœurs", ["child_id"])
+
+import logging, multiprocessing as mp, threading, time, uuid, queue, resource, os
+from fastapi import FastAPI
+from .config import cfg
+from .metrics import SPAWN_COUNT, TERMINATE_COUNT, CHILD_UPTIME
+from pydantic import BaseModel
+from typing import Dict, Any, Optional
+
+# Child bootstrap
+def _child_bootstrap(cfg: Dict[str,Any], in_q: mp.Queue, out_q: mp.Queue):
+    import psutil
+    # impose RAM limit
+    if cfg.get("ram_limit_mb"):
+        lim = cfg["ram_limit_mb"] * 1024 * 1024
+        resource.setrlimit(resource.RLIMIT_AS, (lim, lim))
+    # simple echo loop
+    while True:
+        try:
+            msg = in_q.get(timeout=1)
+            if msg is None: break
+            out_q.put({"child": os.getpid(), "echo": msg})
+        except queue.Empty:
+            pass
+
+class SpawnPolicy(BaseModel):
+    ram_limit_mb: Optional[int] = None
+
+class KernelBridge:
+    def __init__(self):
+        self.logger = logging.getLogger("kernelbridge")
+        self._children = {}  # pid → {proc,in_q,out_q,policy,start}
+        self._lock = threading.RLock()
+        self.app = FastAPI(title="KernelBridge API")
+        self._configure_api()
+        threading.Thread(target=self._pump_loop, daemon=True).start()
+
+    def spawn(self, policy: SpawnPolicy) -> int:
+        in_q, out_q = mp.Queue(), mp.Queue()
+        cfg = {"ram_limit_mb": policy.ram_limit_mb}
+        proc = mp.Process(target=_child_bootstrap, args=(cfg,in_q,out_q), daemon=True)
+        proc.start()
+        cid = proc.pid
+        with self._lock:
+            self._children[cid] = {"proc":proc,"in_q":in_q,"out_q":out_q,"start":time.time()}
+        SPAWN_COUNT.inc()
+        return cid
+
+    def terminate(self, cid: int):
+        with self._lock:
+            info = self._children.pop(cid, None)
+        if info:
+            info["in_q"].put(None)
+            info["proc"].join(timeout=3)
+            TERMINATE_COUNT.inc()
+
+    def _pump_loop(self):
+        while True:
+            with self._lock:
+                for cid,info in list(self._children.items()):
+                    # update uptime metric
+                    CHILD_UPTIME.labels(child_id=str(cid)).set(time.time()-info["start"])
+            time.sleep(cfg.STATUS_INTERVAL)
+
+    def _configure_api(self):
+        @self.app.post("/spawn")
+        def api_spawn(policy: SpawnPolicy):
+            cid = self.spawn(policy)
+            return {"child_id": cid}
+
+        @self.app.post("/terminate/{cid}")
+        def api_terminate(cid: int):
+            self.terminate(cid)
+            return {"terminated": cid}
+
+        @self.app.get("/status")
+        def api_status():
+            with self._lock:
+                return {"children": list(self._children.keys())}
+
+import uvicorn
+from .service import KernelBridge
+from .config import cfg
+
+def main():
+    logging.basicConfig(level=cfg.LOG_LEVEL)
+    kb = KernelBridge()
+    uvicorn.run(kb.app, host="0.0.0.0", port=8000)
+
+# tests/test_service.py
+import pytest
+from kernelbridge.service import KernelBridge, SpawnPolicy
+
+def test_spawn_terminate():
+    kb = KernelBridge()
+    cid = kb.spawn(SpawnPolicy(ram_limit_mb=10))
+    assert cid in kb._children
+    kb.terminate(cid)
+    assert cid not in kb._children
+
+# tests/test_cli.py
+from fastapi.testclient import TestClient
+from kernelbridge.service import KernelBridge
+import threading
+
+kb = KernelBridge()
+client = TestClient(kb.app)
+
+def test_api_spawn_and_status():
+    resp = client.post("/spawn", json={"ram_limit_mb":5})
+    assert resp.status_code==200
+    cid=resp.json()["child_id"]
+    st=client.get("/status").json()
+    assert cid in st["children"]
+    client.post(f"/terminate/{cid}")
+    st2=client.get("/status").json()
+    assert cid not in st2["children"]
+
+FROM python:3.10-slim
+WORKDIR /app
+COPY pyproject.toml .
+RUN pip install --no-cache-dir .
+COPY src/ src/
+EXPOSE 8000 8001
+CMD ["kernelbridge"]
+
+# Colab cell
+!pip install git+https://github.com/tonorg/kernelbridge.git
+from kernelbridge.cli import main
+# lance le serveur FastAPI en arrière-plan
+import threading
+threading.Thread(target=main, daemon=True).start()
+# puis consommer l’API
+import requests
+cid = requests.post("http://localhost:8000/spawn", json={"ram_limit_mb":10}).json()
+print("Spawned child:", cid)

@@ -1,0 +1,13 @@
+{
+  "note": "Jeu témoin écrit AVANT de modifier l'extracteur (commit séparé). Ne jamais régler l'extracteur sur ces phrases : on les mesure, point.",
+  "redige_le": "2026-10-16",
+  "items": [
+    ["Every dog barks. Rex is a dog. Does Rex bark?", "oui"],
+    ["Le Louvre est à Paris. Paris est en France. Le Louvre est-il en France ?", "oui"],
+    ["If Marie studies, she passes. Marie studies. Does Marie pass?", "oui"],
+    ["Aucun végétarien ne mange de viande. Léa est végétarienne. Léa mange-t-elle de la viande ?", "non"],
+    ["Cats chase mice. Felix is a cat. Does Felix chase mice?", "oui"],
+    ["Some birds sing. Tweety is a bird. Does Tweety sing?", "inconnu"],
+    ["Tom lives in Lyon. Is Tom in Paris?", "inconnu"]
+  ]
+}

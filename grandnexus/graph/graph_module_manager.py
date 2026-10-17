@@ -58,7 +58,7 @@ class GraphModuleManager:
 
         # Initialize the GraphEngine
         self.logger.info(f"Initializing GraphEngine of type '{graph_engine_type}'")
-        shared = config.get('graph_engine_instance')  # fix 6.5: shared graph
+        shared = config.get('graph_engine_instance')  # réparation 6.5 : graphe partagé
         self.graph_engine = shared if shared is not None else create_graph_engine(graph_engine_type, **graph_engine_config)
 
         # Initialize PatternMining if enabled
@@ -111,7 +111,7 @@ class GraphModuleManager:
         self.nexus_core.register_handler("memory.episodic_created", self._handle_episodic_created)
 
         # Register with ModuleRegistry
-        registry = getattr(self.nexus_core, "module_registry", None)  # fix 6.5
+        registry = getattr(self.nexus_core, "module_registry", None)  # réparation 6.5
         if registry is None:
             registry = ModuleRegistry(self.nexus_core)
             self.nexus_core.module_registry = registry

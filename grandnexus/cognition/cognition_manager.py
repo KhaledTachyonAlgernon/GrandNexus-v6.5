@@ -122,7 +122,7 @@ class CognitiveState:
     mode: str = "normal"       # Cognitive mode: normal, focused, exploratory, etc.
     metadata: Dict[str, Any] = field(default_factory=dict)
 
-from grandnexus.cognition.contracts import (  # repair 6.5
+from grandnexus.cognition.contracts import (  # réparation 6.5
     CognitionManagerBase, CognitiveModuleBase, CognitiveProcessType, CognitiveMode,
     CognitiveContext, CognitiveRequest, CognitiveResult, cognitive_capability,
 )
@@ -1940,3 +1940,7 @@ class CognitionManager(CognitionManagerBase):
         progress = min(0.95, time_elapsed / expected_duration)
 
         return progress
+
+# --- réparation 6.5 : ponts vers l'API réelle des modules (voir manager_bridges.py)
+from grandnexus.cognition.manager_bridges import install as _install_bridges
+_install_bridges()

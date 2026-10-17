@@ -19,6 +19,7 @@ _ALIASES = {
     "grandnexus.reasoning": "grandnexus.cognition.reasoning",
     "grandnexus.learning": "grandnexus.cognition.learning",
     "grandnexus.metacognition": "grandnexus.cognition.metacognition",
+    "grandnexus.dialogue": "grandnexus.io",  # couche 15/05 : en-tête io/, import dialogue/
 }
 
 

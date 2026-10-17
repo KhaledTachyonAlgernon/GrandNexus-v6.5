@@ -1259,3 +1259,10 @@ class ResourceManager:
                 "current_task_count": quota.current_task_count
             }
         return None
+
+# --- réparation 6.5 : historique demandé par le CognitiveOrchestrator
+def _get_usage_history(self, limit: int = 60):
+    return [{"timestamp": s.timestamp, "cpu": s.cpu_usage, "memory": s.memory_usage,
+             "disk": s.disk_usage} for s in list(self.resource_snapshots)[-limit:]]
+if not hasattr(ResourceManager, "get_usage_history"):
+    ResourceManager.get_usage_history = _get_usage_history

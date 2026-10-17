@@ -1,4 +1,5 @@
-from grandnexus.core.errorRecoveryManager import ErrorRecoveryManager  # fix 6.5: previously provided by the notebook's shared namespace
+import itertools  # réparation 6.5 : fourni avant par l'espace de noms partagé du notebook
+from grandnexus.core.errorRecoveryManager import ErrorRecoveryManager  # réparation 6.5 : fourni avant par l'espace de noms partagé du notebook
 import logging
 import threading
 import time
@@ -8,6 +9,8 @@ import json  # For serializing/deserializing module configurations
 from typing import Dict, Any, Optional, List, Callable, Union, Tuple, Set  # Importer Set
 import heapq  # Correctly manage priorities
 
+
+_MSG_SEQ = itertools.count()  # réparation 6.5 : départage des messages de même priorité
 
 class NexusCore:
     """
@@ -230,7 +233,7 @@ class NexusCore:
                     self.logger.info(f"Module '{name}' configuration updated and applied.")
                 except Exception as e:
                      self.logger.error(f"Error applying configuration to module '{name}': {e}")
-                     # Don't change the module status here, as the module might still be functional
+                     #  Don't change the module status here, as the module might still be functional
 
             self._persist_module(name) # Persist new config
             self.logger.info(f"Module '{name}' configuration updated in registry.")
@@ -348,7 +351,7 @@ class NexusCore:
       uptime = time.time() - self.start_time
       self.logger.info(f"NexusCore [{self.instance_id}] stopped. Total uptime: {uptime:.2f}s")
 
-      # Stop the error handler (fix 6.5: was after the return)
+      # Arrêter le gestionnaire d'erreurs (réparation 6.5 : était après le return)
       if hasattr(self, "error_recovery"):
           try:
               self.error_recovery.shutdown()
@@ -357,7 +360,7 @@ class NexusCore:
 
       return stop_success
 
-    # Enhancement for NexusCore._resolve_dependencies()
+    # Amélioration pour NexusCore._resolve_dependencies()
     def _resolve_dependencies(self) -> List[str]:
         """
         Determines the startup (and shutdown) order of modules based on dependencies.
@@ -543,7 +546,7 @@ class NexusCore:
               self._persist_module(name)  # Persist
               return False
 
-    # Enhancements for lifecycle hooks
+    # Améliorations pour les hooks du cycle de vie
 
     def add_hook(self, hook_type: str, hook_func: Callable[['NexusCore'], None]) -> bool:
         """
@@ -649,7 +652,7 @@ class NexusCore:
         }
 
         with self.lock:
-            heapq.heappush(self.message_queue, (priority, message))  # Use heapq
+            heapq.heappush(self.message_queue, (priority, next(_MSG_SEQ), message))  # réparation 6.5 : FIFO à égalité
             self.logger.debug(f"Message from '{source}' to '{target}' (type: {message_type}, priority: {priority}) queued.")
 
         # If asynchronous messaging is disabled, process messages immediately
@@ -664,7 +667,7 @@ class NexusCore:
         """
         with self.lock:
             while self.message_queue:
-                priority, message = heapq.heappop(self.message_queue) # Use heappop
+                priority, _seq, message = heapq.heappop(self.message_queue)  # réparation 6.5
                 self._deliver_message(message)
 
 
@@ -769,6 +772,6 @@ class NexusCore:
             else:
                 self.logger.error(f"Cannot update status: Module '{module_name}' not found")
 
-# --- fix 6.5: publish/subscribe bus (see core/event_bus.py)
+# --- réparation 6.5 : bus publication/abonnement (voir core/event_bus.py)
 from grandnexus.core.event_bus import install_event_bus as _install_event_bus
 _install_event_bus(NexusCore)

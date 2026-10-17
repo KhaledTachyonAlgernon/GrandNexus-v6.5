@@ -2777,5 +2777,5 @@ def create_graph_engine(engine_type: str, **kwargs) -> AbstractGraphEngine:
     else:
         raise ValueError(f"Unknown engine type: {engine_type}. Supported types: inmemory, neo4j")
 
-# --- fix 6.5: name expected by pattern_recognizer, reasoning_core, llm_engine
+# --- réparation 6.5 : nom attendu par pattern_recognizer, reasoning_core, llm_engine
 GraphEngine = AbstractGraphEngine

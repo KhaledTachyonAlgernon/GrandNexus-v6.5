@@ -14,7 +14,7 @@ def r2_syntax():
     lines = read(p).split("\n")
     assert lines[1685].startswith("            if all(\"attributes\" in entity"), lines[1685][:60]
     assert lines[1829].strip().startswith("# Use LLM for more sophisticated analogical")
-    reindent(p, 1686, 1829, -4)   # block over-indented by 4 (a missing `try:`)
+    reindent(p, 1686, 1829, -4)   # bloc sur-indenté de 4 (un `try:` perdu)
 
 def r3_dataclasses():
     """Champs obligatoires après des champs par défaut : kw_only=True (Python 3.10+),
@@ -64,7 +64,7 @@ class LearningResult:
     duration: float = 0.0
     timestamp: float = field(default_factory=time.time)
 ''')
-    # create_pattern_mining existed but was indented inside PatternMiningModule
+    # create_pattern_mining existait mais était indentée DANS PatternMiningModule
     p = "grandnexus/graph/pattern_mining.py"
     lines = read(p).split("\n")
     i = next(k for k, l in enumerate(lines) if l.startswith("    def create_pattern_mining("))
@@ -93,25 +93,25 @@ def r8_cognitive_contract():
               "    CognitionManagerBase as CognitionManager,  # contrat : casse l'import circulaire\n"
               "    CognitiveModuleBase, CognitiveProcessType, CognitiveMode,\n"
               "    CognitiveContext, CognitiveRequest, CognitiveResult,\n)" + s[end:])
-    # PerceptionCore: the manager passes nexus_core to it
+    # PerceptionCore : le manager lui passe nexus_core
     p = "grandnexus/cognition/perception/perception_core.py"
     replace_once(p, "                 llm_engine: Optional[LLMEngine] = None):\n        \"\"\"\n        Initialize the Perception Core.",
                  "                 llm_engine: Optional[LLMEngine] = None,\n                 nexus_core: Any = None,\n                 **kwargs):\n        \"\"\"\n        Initialize the Perception Core.")
     replace_once(p, "        self.cognition_manager = cognition_manager\n        self.working_memory = working_memory\n        self.semantic_memory = semantic_memory\n        self.llm_engine = llm_engine\n",
                  "        self.cognition_manager = cognition_manager\n        self.working_memory = working_memory\n        self.semantic_memory = semantic_memory\n        self.llm_engine = llm_engine\n        self.nexus_core = nexus_core\n")
-    # ReasoningCore: the manager passes nexus_core and episodic_memory to it
+    # ReasoningCore : le manager lui passe nexus_core et episodic_memory
     p = "grandnexus/cognition/reasoning/reasoning_core.py"
     replace_once(p, "                 llm_engine: Optional[LLMEngine] = None):\n        \"\"\"\n        Initialize the Reasoning Core.",
                  "                 llm_engine: Optional[LLMEngine] = None,\n                 episodic_memory: Any = None,\n                 nexus_core: Any = None,\n                 **kwargs):\n        \"\"\"\n        Initialize the Reasoning Core.")
     replace_once(p, "        self.graph_engine = graph_engine\n        self.llm_engine = llm_engine\n\n        # Logger setup\n        self.logger = logging.getLogger(\"ReasoningCore\")",
                  "        self.graph_engine = graph_engine\n        self.llm_engine = llm_engine\n        self.episodic_memory = episodic_memory\n        self.nexus_core = nexus_core\n\n        # Logger setup\n        self.logger = logging.getLogger(\"ReasoningCore\")")
-    # ReinforcementLearning: the manager passes learning_core to it
+    # ReinforcementLearning : le manager lui passe learning_core
     p = "grandnexus/cognition/learning/reinforcement.py"
     replace_once(p, "                semantic_memory: Optional[SemanticMemory] = None):\n        \"\"\"\n        Initialize the reinforcement learning module.",
                  "                semantic_memory: Optional[SemanticMemory] = None,\n                learning_core: Any = None):\n        \"\"\"\n        Initialize the reinforcement learning module.")
     s = read(p); i = s.index("class ReinforcementLearning"); j = s.index('"""', s.index("def __init__", i)); j = s.index('"""', j + 3) + 3
     write(p, s[:j] + "\n        self.learning_core = learning_core  # réparation 6.5" + s[j:])
-    # PlanningModule: the manager calls initialize()
+    # PlanningModule : le manager appelle initialize()
     append("grandnexus/cognition/reasoning/planning.py", '''
 # --- réparation 6.5 : CognitionManager appelle initialize() avant start()
 def _planning_initialize(self) -> bool:
@@ -121,7 +121,7 @@ def _planning_initialize(self) -> bool:
 if not hasattr(PlanningModule, "initialize"):
     PlanningModule.initialize = _planning_initialize
 ''')
-    # CognitionManager inherits from the contractual base and re-exports the contract
+    # CognitionManager hérite du socle contractuel et ré-exporte le contrat
     p = "grandnexus/cognition/cognition_manager.py"
     replace_once(p, "\nclass CognitionManager:", "\nfrom grandnexus.cognition.contracts import (  # réparation 6.5\n"
                  "    CognitionManagerBase, CognitiveModuleBase, CognitiveProcessType, CognitiveMode,\n"
@@ -198,6 +198,230 @@ def r13_shared_graph():
                  "        self.graph_engine = create_graph_engine(graph_engine_type, **graph_engine_config)\n",
                  "        shared = config.get('graph_engine_instance')  # réparation 6.5 : graphe partagé\n"
                  "        self.graph_engine = shared if shared is not None else create_graph_engine(graph_engine_type, **graph_engine_config)\n")
+
+def r14_reason_workspace_contract():
+    """reason() rangeait le contexte sous workspace['context_data'] alors que
+    _infer_input() et _select_next_strategy() le cherchent sous workspace['context']
+    et les entrées (premises, rules...) directement dans le workspace : la déduction
+    n'était donc jamais sélectionnable. Le contrat est rétabli des deux côtés."""
+    replace_once("grandnexus/cognition/reasoning/reasoning_core.py",
+                 "                \"context_data\": context.parameters,\n",
+                 "                \"context_data\": context.parameters,\n"
+                 "                \"context\": context.parameters,  # réparation 6.5 : clé lue par _infer_input\n"
+                 "                **{k: context.parameters[k] for k in (\"premises\", \"rules\", \"examples\", \"observations\",\n"
+                 "                                                      \"source_domain\", \"target_domain\")\n"
+                 "                   if k in context.parameters},\n")
+
+def r15_orchestrator_imports():
+    """Le CognitiveOrchestrator importe ReasoningEngine / LearningManager / PerceptionModule
+    depuis les paquets cognition.* : ces classes n'existaient pas. Elles sont fournies
+    par cognition/adapters.py et exposées paresseusement par les __init__ (PEP 562)."""
+    copy_new("adapters.py", "grandnexus/cognition/adapters.py")
+    for pkg, name in (("reasoning", "ReasoningEngine"), ("learning", "LearningManager"),
+                      ("perception", "PerceptionModule")):
+        write(f"grandnexus/cognition/{pkg}/__init__.py",
+              f'"""Paquet cognition.{pkg} (réparation 6.5 : export paresseux de {name})."""\n\n'
+              f'def __getattr__(attr):\n'
+              f'    if attr == "{name}":\n'
+              f'        from grandnexus.cognition.adapters import {name}\n'
+              f'        return {name}\n'
+              f'    raise AttributeError(attr)\n')
+    for p in ("grandnexus/cognition/orchestration/cognitive_orchestrator.py",
+              "grandnexus/cognition/orchestration/cognitive_orchestrator_v1.py"):
+        dedent_from(p, "def create_cognitive_orchestrator(")
+
+def r16_layer_bugs():
+    """Couche 15/05 : défauts de dataclass, texte shell/JS collé dans le code,
+    chemin d'import incohérent (grandnexus.dialogue vs grandnexus/io), openai non protégé."""
+    p = "grandnexus/homeostasis/homeostasis_manager.py"
+    for name, a, b in (("cpu_thr", "0.70", "0.90"), ("mem_thr", "0.75", "0.95")):
+        replace_once(p, f"    {name}: Thresholds = Thresholds({a}, {b})\n",
+                     f"    {name}: Thresholds = field(default_factory=lambda: Thresholds({a}, {b}))\n")
+    for name, a, b, cmt in (("temp_thr", "0.60", "0.80", "        # fraction of Tjmax"),
+                            ("batt_thr", "0.30", "0.10", "        # remaining % (inverse)"),
+                            ("api_thr", "0.70", "0.90", "         # quota usage"),
+                            ("cost_thr", "0.70", "0.90", "        # budget usage")):
+        replace_once(p, f"    {name}: Thresholds = Thresholds({a}, {b}){cmt}\n",
+                     f"    {name}: Thresholds = field(default_factory=lambda: Thresholds({a}, {b})){cmt}\n")
+    s = read(p)
+    if "from dataclasses import dataclass, field" not in s:
+        add_import(p, "from dataclasses import field")
+    p = "grandnexus/io/dialogue_interface.py"
+    s = read(p); i = s.index("curl -N -H")
+    write(p, s[:i] + "\n".join("# " + l for l in s[i:].split("\n")) + "\n")
+    p = "grandnexus/cognition/metacognition/explainability_engine.py"
+    replace_once(p, "import openai  # Assurez-vous", "try:\n    import openai\nexcept ImportError:  # réparation 6.5\n    openai = None\n# Assurez-vous")
+    replace_once("grandnexus/__init__.py", '    "grandnexus.metacognition": "grandnexus.cognition.metacognition",\n',
+                 '    "grandnexus.metacognition": "grandnexus.cognition.metacognition",\n'
+                 '    "grandnexus.dialogue": "grandnexus.io",  # couche 15/05 : en-tête io/, import dialogue/\n')
+
+def r17_resource_history():
+    """L'orchestrateur appelle resource_manager.get_usage_history() : méthode absente,
+    les instantanés existaient déjà (resource_snapshots)."""
+    append("grandnexus/computation/resource_manager.py", '''
+# --- réparation 6.5 : historique demandé par le CognitiveOrchestrator
+def _get_usage_history(self, limit: int = 60):
+    return [{"timestamp": s.timestamp, "cpu": s.cpu_usage, "memory": s.memory_usage,
+             "disk": s.disk_usage} for s in list(self.resource_snapshots)[-limit:]]
+if not hasattr(ResourceManager, "get_usage_history"):
+    ResourceManager.get_usage_history = _get_usage_history
+''')
+
+def r18_orchestrator_state():
+    """La matrice de transition de l'orchestrateur envoie vers CognitiveState.PERCEPTION
+    (« new_input ») mais l'énumération ne définissait pas cet état : plantage à start()."""
+    for p in ("grandnexus/cognition/orchestration/cognitive_orchestrator.py",
+              "grandnexus/cognition/orchestration/cognitive_orchestrator_v1.py"):
+        if "CognitiveState.PERCEPTION" in read(p):
+            replace_once(p, "    META_REFLECTION = auto()  # Self-analysis and process optimization\n",
+                         "    META_REFLECTION = auto()  # Self-analysis and process optimization\n"
+                         "    PERCEPTION = auto()       # réparation 6.5 : cible de la transition « new_input »\n")
+
+def r19_working_memory_sort():
+    """WorkingMemory triait des tuples (score, item) : à score égal, Python compare
+    les items -> TypeError. Tri sur le score seul (ordre stable conservé)."""
+    p = "grandnexus/memory/working.py"
+    s = read(p)
+    assert s.count("            scored_items.sort(reverse=True)\n") == 1 and s.count("        scored_items.sort(reverse=True)\n") == 2
+    write(p, s.replace("scored_items.sort(reverse=True)", "scored_items.sort(key=lambda x: x[0], reverse=True)  # réparation 6.5"))
+
+def r20_working_memory_item():
+    """WorkingMemoryItem.access_count lu et incrémenté par 4 méthodes, jamais déclaré."""
+    replace_once("grandnexus/memory/working.py",
+                 "    embedding: Optional[np.ndarray] = None\n\n    def __repr__(self) -> str:\n        return (f\"<WorkingMemoryItem",
+                 "    embedding: Optional[np.ndarray] = None\n    access_count: int = 0  # réparation 6.5 : utilisé par retrieve/éviction\n\n"
+                 "    def __repr__(self) -> str:\n        return (f\"<WorkingMemoryItem")
+
+def r21_orchestrator_session_output():
+    """process_input() renvoyait les résultats de raisonnement de N'IMPORTE QUELLE session :
+    la question 2 recevait la réponse de la question 1 (contamination mémoire).
+    Les éléments sont maintenant filtrés sur la session courante (horodatage >= début)."""
+    p = "grandnexus/cognition/orchestration/cognitive_orchestrator.py"
+    replace_once(p, '''                reasoning_results = self.working_memory.retrieve(
+                    query_text="reasoning",
+                    max_results=5
+                )
+''', '''                reasoning_results = self.working_memory.retrieve(
+                    query_text="reasoning",
+                    max_results=50
+                )
+                # réparation 6.5 : seulement ce qui a été produit pendant cette session
+                reasoning_results = [i for i in reasoning_results
+                                     if getattr(i, "timestamp", 0) >= start_time
+                                     and getattr(i, "source", "") == "reasoning"][:5]
+''')
+    replace_once(p, '''                    relevant_items = self.working_memory.retrieve(
+                        query_text=self.context.focus_target or "current_task",
+                        max_results=3
+                    )
+''', '''                    relevant_items = self.working_memory.retrieve(
+                        query_text=self.context.focus_target or "current_task",
+                        max_results=50
+                    )
+                    relevant_items = [i for i in relevant_items
+                                      if getattr(i, "timestamp", 0) >= start_time][:3]  # réparation 6.5
+''')
+
+def r22_orchestrator_cleanup():
+    """Les actions terminées restaient dans active_actions (et y gardaient leurs ressources)
+    tant que la boucle de fond n'appelait pas _cleanup_actions(). Sans cette boucle
+    (process_input synchrone), plus rien ne s'exécutait après la 1re question.
+    Nettoyage fait aussi au début de _process_action_queue()."""
+    for p in ("grandnexus/cognition/orchestration/cognitive_orchestrator.py",
+              "grandnexus/cognition/orchestration/cognitive_orchestrator_v1.py"):
+        replace_once(p, '''        """Process actions from the queue based on priorities and resource constraints."""
+        if not self.action_queue:
+            return
+''', '''        """Process actions from the queue based on priorities and resource constraints."""
+        self._cleanup_actions()  # réparation 6.5 : libère les ressources des actions finies
+        if not self.action_queue:
+            return
+''')
+
+def r23_orchestrator_memory_queries():
+    """L'orchestrateur passait des dict à SemanticMemory.query_concepts (attend SemanticQuery)
+    et EpisodicMemory.retrieve_episodes (attend EpisodicQuery) -> chaque « retrieve » échouait.
+    Méta-analyse : moyenne sur un dict vide -> division par zéro."""
+    for p in ("grandnexus/cognition/orchestration/cognitive_orchestrator.py",
+              "grandnexus/cognition/orchestration/cognitive_orchestrator_v1.py"):
+        s = read(p)
+        if "semantic_results = self.semantic_memory.query_concepts(semantic_query)" in s:
+            replace_once(p, "semantic_results = self.semantic_memory.query_concepts(semantic_query)",
+                         "from grandnexus.memory.semantic import SemanticQuery  # réparation 6.5\n"
+                         "                semantic_results = self.semantic_memory.query_concepts(SemanticQuery(**semantic_query))")
+        if "episodic_results = self.episodic_memory.retrieve_episodes(episodic_query)" in s:
+            replace_once(p, "episodic_results = self.episodic_memory.retrieve_episodes(episodic_query)",
+                         "from grandnexus.memory.episodic import EpisodicQuery  # réparation 6.5\n"
+                         "                _eq = dict(episodic_query)\n"
+                         "                _eq[\"context_factors\"] = {\"recency_bias\": _eq.pop(\"recency_bias\", None)}\n"
+                         "                episodic_results = self.episodic_memory.retrieve_episodes(EpisodicQuery(**_eq))")
+        s = read(p)
+        if "if sum(self.success_rate.values()) / len(self.success_rate) < 0.6:" in s:
+            replace_once(p, "if sum(self.success_rate.values()) / len(self.success_rate) < 0.6:",
+                         "if self.success_rate and sum(self.success_rate.values()) / len(self.success_rate) < 0.6:  # réparation 6.5")
+
+def r24_message_queue_tiebreak():
+    """NexusCore (mode asynchrone) : la file de messages stockait (priorité, dict).
+    Deux messages de même priorité en attente -> Python compare les dict -> TypeError
+    dans send_message(). Le thread émetteur meurt : l'horloge cognitive s'arrêtait
+    après 1 tick. Ajout d'un compteur d'ordre d'arrivée (FIFO à priorité égale)."""
+    p = "grandnexus/core/nexus_core.py"
+    replace_once(p, "            heapq.heappush(self.message_queue, (priority, message))  # Use heapq",
+                 "            heapq.heappush(self.message_queue, (priority, next(_MSG_SEQ), message))  # réparation 6.5 : FIFO à égalité")
+    replace_once(p, "                priority, message = heapq.heappop(self.message_queue) # Use heappop",
+                 "                priority, _seq, message = heapq.heappop(self.message_queue)  # réparation 6.5")
+    add_import(p, "import itertools")
+    s = read(p)
+    lines = s.split("\n")
+    i = next(k for k, l in enumerate(lines) if l.startswith("class NexusCore"))
+    lines.insert(i, "_MSG_SEQ = itertools.count()  # réparation 6.5 : départage des messages de même priorité\n")
+    write(p, "\n".join(lines))
+
+def r25_manager_bridges():
+    """CognitionManager appelait 12 méthodes absentes de ses modules (quick_scan, evaluate,
+    adapt, reflect_on, recognize, process_text, create_plan...). Ponts de délégation vers
+    les méthodes qui existent, installés seulement si absentes."""
+    copy_new("manager_bridges.py", "grandnexus/cognition/manager_bridges.py")
+    append("grandnexus/cognition/cognition_manager.py",
+           "# --- réparation 6.5 : ponts vers l'API réelle des modules (voir manager_bridges.py)\n"
+           "from grandnexus.cognition.manager_bridges import install as _install_bridges\n"
+           "_install_bridges()")
+
+def r26_attention_v2_default():
+    """AttentionFilter (15/05) : max() sur max_rate vide par défaut -> plantage à la création."""
+    replace_once("grandnexus/cognition/perception/filters/attention_filter_v2.py",
+                 "window = int(self.config.history_sec * max(self.config.max_rate.values()))",
+                 "window = int(self.config.history_sec * max(self.config.max_rate.values(), default=50.0))  # réparation 6.5 : 50 Hz = défaut du defaultdict")
+
+def r27_orchestrator_session_filter_first():
+    """Suite de R21 : le filtre « session courante » s'appliquait APRÈS la coupe à 50
+    résultats ; après une dizaine de questions, les anciennes réponses (plus importantes)
+    occupaient les 50 places et la réponse du moment disparaissait (7/12 au labo).
+    Filtre d'abord, coupe ensuite."""
+    p = "grandnexus/cognition/orchestration/cognitive_orchestrator.py"
+    s = read(p)
+    assert s.count("max_results=50\n") == 2
+    write(p, s.replace("max_results=50\n", "max_results=10**6  # réparation 6.5 : filtrer la session avant de couper\n"))
+
+def r28_working_memory_v2_name():
+    """Décision de Khaled : la WorkingMemory du 15/05 vit À CÔTÉ de celle du cœur.
+    Elle s'enregistrait sous « working_memory » (écrasait le cœur). Nouveau nom :
+    « working_memory_v2 ». AffectRegulator la visait (decay_half_life n'existe que
+    dans la v2) : ses deux références suivent le renommage."""
+    replace_once("grandnexus/memory/working_v2.py", 'MODULE_NAME = "working_memory"',
+                 'MODULE_NAME = "working_memory_v2"  # réparation 6.5 : cohabite avec la mémoire du cœur')
+    p = "grandnexus/cognition/metacognition/affect_regulator.py"
+    replace_once(p, '        "executive_planner",\n        "working_memory",\n',
+                 '        "executive_planner",\n        "working_memory_v2",  # réparation 6.5 : renommage\n')
+    replace_once(p, 'wm = self.nexus.get_module("working_memory")',
+                 'wm = self.nexus.get_module("working_memory_v2")  # réparation 6.5 : seule la v2 a decay_half_life')
+
+def r29_layer_flat_imports():
+    """Couche 15/05 (pyflakes) : os manquant dans ExplainabilityEngine (plantage à la
+    création), time manquant dans le pilote VirtualGripper. Les autres noms indéfinis
+    signalés sont dans les démos sous __main__ (fragments d'exemple, laissés tels quels)."""
+    add_import("grandnexus/cognition/metacognition/explainability_engine.py", "import os")
+    add_import("grandnexus/actuators/drivers/virtual_gripper.py", "import time")
 
 if __name__ == "__main__":
     globals()[sys.argv[1]]()
