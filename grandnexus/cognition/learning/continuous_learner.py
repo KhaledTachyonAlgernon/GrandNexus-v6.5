@@ -54,7 +54,7 @@ try:
 except ImportError:
     HAS_AVALANCHE = False
 
-if "Dataset" not in globals():  # Fix 6.5: fallback without PyTorch
+if "Dataset" not in globals():  # réparation 6.5 : repli sans PyTorch
     class Dataset:
         pass
 

@@ -96,7 +96,7 @@ class ParseResult:
     expr_type: SymbolicType
     ast: Optional[SymbolicAST] = None
     sympy_expr: Optional[Any] = None  # SymPy expression if applicable
-    python_ast: "Optional[ast.AST]" = None  # deferred annotation: the `ast` field shadows the module  # Python AST if applicable
+    python_ast: "Optional[ast.AST]" = None  # annotation différée : le champ `ast` masque le module  # Python AST if applicable
     error_message: Optional[str] = None
     confidence: float = 1.0
     metadata: Dict[str, Any] = field(default_factory=dict)

@@ -35,6 +35,8 @@ class GrandNexusSystem:
     graph: Any = None
     graph_manager: Any = None
     cognition: Any = None
+    orchestrator: Any = None
+    resource_manager: Any = None
     report: List[BootStep] = field(default_factory=list)
 
     def ok(self) -> bool:
@@ -50,12 +52,14 @@ class GrandNexusSystem:
     def modules(self) -> Dict[str, Any]:
         out = {}
         if self.cognition is not None:
-            for attr in ("perception_modules", "reasoning_modules", "learning_modules", "metacognition_modules"):
+            for attr in ("perception_modules", "reasoning_modules", "learning_modules", "metacognition_modules",
+                         "extra_modules"):
                 out.update(getattr(self.cognition, attr, {}) or {})
         return out
 
     def shutdown(self) -> None:
-        for obj, meth in ((self.cognition, "stop"), (self.graph_manager, "stop"), (self.core, "stop")):
+        for obj, meth in ((self.orchestrator, "stop"), (self.resource_manager, "stop"), (self.cognition, "stop"),
+                          (self.graph_manager, "stop"), (self.core, "stop")):
             if obj is not None and hasattr(obj, meth):
                 try:
                     getattr(obj, meth)()
@@ -82,7 +86,8 @@ def _step(system: GrandNexusSystem, name: str, fn, verbose: bool = False):
 
 def boot(db_file: Optional[str] = None, start_threads: bool = False,
          log_level: int = logging.WARNING, verbose: bool = False,
-         graph_config: Optional[Dict[str, Any]] = None) -> GrandNexusSystem:
+         graph_config: Optional[Dict[str, Any]] = None,
+         with_orchestrator: bool = True, orchestrator_threads: bool = False) -> GrandNexusSystem:
     """Démarre GrandNexus.
     start_threads=False : modules initialisés mais boucles de fond non lancées
     (mode laboratoire, déterministe). True : CognitionManager.start()."""
@@ -133,7 +138,7 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
         if gn.core is not None:
             _step(gn, "enregistrement dans NexusCore", gn.cognition._register_with_nexus_core, verbose)
         def _share_graph():
-            # a single graph for the whole system: injected where the manager didn't provide one
+            # un seul graphe pour tout le système : injecté là où le manager n'en a pas passé
             n = 0
             for name, mod in gn.modules().items():
                 if hasattr(mod, "graph_engine") and getattr(mod, "graph_engine") is None:
@@ -142,8 +147,51 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
             return n
         if gn.graph is not None:
             _step(gn, "graphe partagé injecté", _share_graph, verbose)
+        def _pathways():
+            # voie perception -> prémisses -> raisonnement (modules ajoutés, rien remplacé)
+            from grandnexus.cognition.perception.premise_extractor import PremiseExtractor
+            from grandnexus.cognition.reasoning.text_reasoner import TextReasoner
+            mods = gn.modules()
+            extractor = PremiseExtractor(nexus_core=gn.core)
+            gn.cognition.extra_modules = {
+                "premise_extractor": extractor,
+                "text_reasoner": TextReasoner(reasoning_core=mods.get("reasoning_core"),
+                                              perception_core=mods.get("perception_core"),
+                                              extractor=extractor, graph_engine=gn.graph,
+                                              working_memory=gn.working, nexus_core=gn.core),
+            }
+            for name, mod in gn.cognition.extra_modules.items():
+                if gn.core is not None:
+                    gn.core.register_module(name, mod)
+        _step(gn, "voie perception→raisonnement", _pathways, verbose)
         gn.cognition.initialized = True
         n = _step(gn, "câblage des capacités", gn.cognition.wire_capabilities, verbose)
         if start_threads:
             _step(gn, "CognitionManager.start()", gn.cognition.start, verbose)
+
+    if with_orchestrator and gn.core is not None and gn.cognition is not None:
+        def _adapters():
+            # noms attendus par CognitiveOrchestrator.start() via nexus_core.get_module(...)
+            from grandnexus.cognition.adapters import ReasoningEngine, LearningManager, PerceptionModule
+            from grandnexus.computation.resource_manager import ResourceManager
+            mods = gn.modules()
+            gn.core.register_module("perception_module", PerceptionModule(
+                mods.get("perception_core"), mods.get("premise_extractor"), gn.working))
+            gn.core.register_module("reasoning_engine", ReasoningEngine(mods.get("text_reasoner"), gn.working))
+            gn.core.register_module("learning_manager", LearningManager(mods.get("learning_core")))
+            gn.resource_manager = ResourceManager(nexus_core=gn.core)
+            gn.core.register_module("resource_manager", gn.resource_manager)
+        _step(gn, "adaptateurs orchestrateur (15/05)", _adapters, verbose)
+
+        def _orchestrator():
+            from grandnexus.cognition.orchestration.cognitive_orchestrator import CognitiveOrchestrator
+            orch = CognitiveOrchestrator(gn.core, {"monitoring_interval": 0.5, "execution_interval": 0.2})
+            if not orch.start():
+                raise RuntimeError("CognitiveOrchestrator.start() a échoué (voir logs)")
+            if not orchestrator_threads:
+                orch.stop()   # mode laboratoire : modules câblés, boucles de fond arrêtées
+            gn.core.register_module("cognitive_orchestrator", orch)
+            gn.orchestrator = orch
+            return orch
+        _step(gn, "CognitiveOrchestrator", _orchestrator, verbose)
     return gn

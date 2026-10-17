@@ -18,7 +18,7 @@ Key principles:
 - Support integration with memory and perception modules
 """
 
-import re  # fix 6.5: previously provided by the notebook's shared namespace
+import re  # réparation 6.5 : fourni avant par l'espace de noms partagé du notebook
 import logging
 import threading
 import time
@@ -421,6 +421,10 @@ class ReasoningCore(CognitiveModuleBase):
             initial_data = {
                 "query": reasoning_query,
                 "context_data": context.parameters,
+                "context": context.parameters,  # réparation 6.5 : clé lue par _infer_input
+                **{k: context.parameters[k] for k in ("premises", "rules", "examples", "observations",
+                                                      "source_domain", "target_domain")
+                   if k in context.parameters},
                 "working_memory_snapshot": {},  # Would be populated from working memory
                 "intermediate_results": []
             }

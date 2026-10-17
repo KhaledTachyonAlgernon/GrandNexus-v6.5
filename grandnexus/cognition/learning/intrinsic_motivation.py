@@ -1061,7 +1061,7 @@ class IntrinsicMotivation:
         # Store configuration
         self.config = config or IntrinsicMotivationConfig()
 
-         # Store module references
+        # Store module references
         self.nexus_core = nexus_core
         self.episodic_memory = episodic_memory
         self.working_memory = working_memory
@@ -1436,7 +1436,7 @@ class IntrinsicMotivation:
             return
 
         try:
-             # Register as a module with NexusCore
+            # Register as a module with NexusCore
             dependencies = []
             if self.episodic_memory:
                 dependencies.append("episodic_memory")

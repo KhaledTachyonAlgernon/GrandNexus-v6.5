@@ -12,33 +12,33 @@ GrandNexus/
 │   └── working.py
 │
 ├── cognition/
-├── cognition_manager.py      # Central cognition orchestrator
+├── cognition_manager.py      # Central orchestrator for cognition
 │
 ├── perception/
 │   ├── perception_core.py    # Core module for input interpretation
-│   ├── symbolic_parser.py    # Parser for symbolic/mathematical expressions
+│   ├── symbolic_parser.py    # Parsing of symbolic/mathematical expressions
 │   ├── code_analyzer.py      # Code analysis and formal structures
 │   ├── pattern_recognizer.py # Detection of recurring patterns
 │   └── filters/              # Attentional and contextual filters
 │
 ├── reasoning/
 │   ├── reasoning_core.py     # Core of the reasoning system
-│   ├── neural_reasoner.py    # Reasoning using neural networks (embeddings)
+│   ├── neural_reasoner.py    # Neural network-based reasoning (embeddings)
 │   ├── hybrid_inference.py   # Neuro-symbolic module (LNN, DeepProbLog, etc.)
 │   ├── planning.py           # Planning and goal decomposition
-│   └── uncertainty.py        # Uncertainty management and probabilistic reasoning
+│   └── uncertainty.py        # Uncertainty handling and probabilistic reasoning
 │
 ├── learning/
 │   ├── learning_core.py      # Core of the learning system
-│   ├── continuous_learner.py # Continuous learning (Avalanche)
+│   ├── continuous_learner.py # Continual learning (Avalanche)
 │   ├── meta_learner.py       # Meta-learning (learn2learn)
 │   ├── reinforcement.py      # Reinforcement learning
-│   ├── intrinsic_motivation.py # Motivation and computational curiosity
-│   └── curriculum.py         # Learning curriculum management
+│   ├── intrinsic_motivation.py # Intrinsic motivation and computational curiosity
+│   └── curriculum.py         # Curriculum management
 │
 └── metacognition/
     ├── monitor.py            # Monitoring of cognitive processes
-    ├── confidence.py         # Confidence/uncertainty assessment
+    ├── confidence.py         # Confidence/uncertainty evaluation
     ├── adaptation.py         # Dynamic adjustment of parameters
     └── reflection.py         # Self-analysis of reasoning processes
 │

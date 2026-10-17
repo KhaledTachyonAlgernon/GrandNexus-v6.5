@@ -10,7 +10,7 @@ from grandnexus.boot import boot
 from grandnexus.cognition.contracts import (CognitiveProcessType as P, CognitiveContext,
                                             CognitiveRequest)
 
-PERCEPTION_SET = [  # (input, expected type)
+PERCEPTION_SET = [  # (entrée, type attendu)
     ("2*x + 3 = 7", "MATHEMATICAL"), ("x^2 - 4 = 0", "MATHEMATICAL"),
     ("def f(x):\n    return x*2", "CODE"), ("import os\nprint(os.getcwd())", "CODE"),
     ('{"a": 1, "b": [1, 2]}', "STRUCTURED_DATA"), ("[1, 2, 3]", "STRUCTURED_DATA"),

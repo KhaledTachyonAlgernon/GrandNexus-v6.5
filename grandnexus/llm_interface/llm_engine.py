@@ -37,7 +37,7 @@ from grandnexus.memory.working import WorkingMemory
 from grandnexus.memory.semantic import SemanticMemory
 from grandnexus.memory.episodic import EpisodicMemory
 from grandnexus.graph.graph_engine import GraphEngine
-from grandnexus.graph.graph_engine import GraphQuery  # repair 6.5
+from grandnexus.graph.graph_engine import GraphQuery  # réparation 6.5
 
 class LLMProvider(str, Enum):
     """Types of supported LLM providers"""

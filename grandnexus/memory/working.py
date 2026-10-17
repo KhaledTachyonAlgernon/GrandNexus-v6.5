@@ -12,7 +12,7 @@ It is fully thread-safe via RLock, and can be integrated with other memory or
 cognition modules in GrandNexus.
 """
 
-import math  # fix 6.5: previously provided by the notebook's shared namespace
+import math  # réparation 6.5 : fourni avant par l'espace de noms partagé du notebook
 import logging
 import threading
 import time
@@ -46,6 +46,7 @@ class WorkingMemoryItem:
     metadata: Dict[str, Any] = field(default_factory=dict)
     expiration_time: Optional[float] = None
     embedding: Optional[np.ndarray] = None
+    access_count: int = 0  # réparation 6.5 : utilisé par retrieve/éviction
 
     def __repr__(self) -> str:
         return (f"<WorkingMemoryItem id={self.item_id[-8:]}, "
@@ -320,7 +321,7 @@ class WorkingMemory:
                 scored_items.append((score, item))
 
             # Sort by score descending and take top N
-            scored_items.sort(reverse=True)
+            scored_items.sort(key=lambda x: x[0], reverse=True)  # réparation 6.5
             results = [item for _, item in scored_items[:max_results]]
 
             # Update access records for returned items
@@ -661,7 +662,7 @@ class WorkingMemory:
         scored_items = [(score_item(item), item_id) for item_id, item in self.memory.items()]
 
         # Sort by score (highest first = most likely to evict)
-        scored_items.sort(reverse=True)
+        scored_items.sort(key=lambda x: x[0], reverse=True)  # réparation 6.5
 
         # Evict the highest-scored items
         evicted = 0

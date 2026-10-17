@@ -13,7 +13,7 @@ The design philosophy emphasizes:
 - Flexibility: Support for multiple learning paradigms without rigidity
 """
 
-import random  # fix 6.5: previously provided by the notebook's shared namespace
+import random  # réparation 6.5 : fourni avant par l'espace de noms partagé du notebook
 import logging
 import threading
 import time
@@ -1455,7 +1455,7 @@ class LearningCore:
 
         return result
 
-# --- fix 6.5: LearningResult (imported by continuous_learner, never defined)
+# --- réparation 6.5 : LearningResult (importé par continuous_learner, jamais défini)
 @dataclass
 class LearningResult:
     """Résultat d'une tâche d'apprentissage."""

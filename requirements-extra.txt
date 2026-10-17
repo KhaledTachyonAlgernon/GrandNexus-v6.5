@@ -1,0 +1,18 @@
+# Dépendances optionnelles de la couche 15/05.
+# Niveau 1 — pip seul, sans serveur : débloque les imports (mesuré : 91 -> 99 modules sur 104)
+deap
+gymnasium
+sse-starlette
+python-multipart
+slack_sdk
+opentelemetry-api
+opentelemetry-sdk
+GitPython
+# Niveau 2 — clients de SERVEURS : s'importent, mais il faut un serveur qui tourne
+# (MultiAgentCoordinator -> Redis : « connection refused » ; DecisionHistoryArchive -> MongoDB : bloque)
+redis
+pymongo
+neo4j
+# Niveau 3 — lourds : torch est déjà dans Colab ; sentence-transformers le réutilise ; pybullet = simulation
+# sentence-transformers
+# pybullet

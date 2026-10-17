@@ -1938,5 +1938,5 @@ class LessonExtractionStrategy(ReflectionStrategy):
 
         return result
 
-# --- fix 6.5: alias for the name expected by the other modules
+# --- réparation 6.5 : alias du nom attendu par les autres modules
 Reflector = ReflectionModule

@@ -38,39 +38,39 @@ from grandnexus.reasoning.symbolic_engine import SymbolicEngine
 from grandnexus.reasoning.neural_reasoner import NeuralReasoner
 from grandnexus.llm_interface.llm_engine import LLMEngine
 
-# Hybrid inference types
+# Types d'inférence hybride
 class InferenceType(Enum):
     """Types d'inférence hybride supportés par le moteur."""
-    DEDUCTION = auto()         # Deductive reasoning (A → B, A ⊢ B)
-    INDUCTION = auto()         # Inductive reasoning (generalization)
-    ABDUCTION = auto()         # Abductive reasoning (explanatory hypothesis)
-    ANALOGY = auto()           # Analogical reasoning
-    PROBABILISTIC = auto()     # Probabilistic reasoning
+    DEDUCTION = auto()         # Raisonnement déductif (A → B, A ⊢ B)
+    INDUCTION = auto()         # Raisonnement inductif (généralisation)
+    ABDUCTION = auto()         # Raisonnement abductif (hypothèse explicative)
+    ANALOGY = auto()           # Raisonnement par analogie
+    PROBABILISTIC = auto()     # Raisonnement probabiliste
     FUZZY = auto()             # Logique floue
-    SPATIAL = auto()           # Spatial reasoning
-    TEMPORAL = auto()          # Temporal reasoning
-    CAUSAL = auto()            # Causal reasoning
-    LLM_GUIDED = auto()        # LLM-guided inference
+    SPATIAL = auto()           # Raisonnement spatial
+    TEMPORAL = auto()          # Raisonnement temporel
+    CAUSAL = auto()            # Raisonnement causal
+    LLM_GUIDED = auto()        # Inférence guidée par un LLM
 
-# Hybrid engine operating mode
+# Mode d'opération du moteur hybride
 class HybridMode(Enum):
     """Modes de fonctionnement du moteur d'inférence hybride."""
-    SYMBOLIC_FIRST = auto()    # Starts with symbolic reasoning
-    NEURAL_FIRST = auto()      # Start with neural reasoning
-    PARALLEL = auto()          # Run both approaches in parallel, then merge
+    SYMBOLIC_FIRST = auto()    # Commence par le raisonnement symbolique
+    NEURAL_FIRST = auto()      # Commence par le raisonnement neuronal
+    PARALLEL = auto()          # Les deux approches en parallèle, puis fusion
     ITERATIVE = auto()         # Alterne entre approches en plusieurs passes
-    ADAPTIVE = auto()          # Dynamically choose the best approach
-    LLM_ORCHESTRATED = auto()  # LLM directs the reasoning flow
+    ADAPTIVE = auto()          # Choisit dynamiquement la meilleure approche
+    LLM_ORCHESTRATED = auto()  # LLM dirige le flux de raisonnement
 
 @dataclass
 class SymbolicConstraint:
     """Représente une contrainte logique formelle."""
     constraint_id: str
-    expression: str            # Textual representation (e.g., "A → B")
+    expression: str            # Représentation textuelle (ex: "A → B")
     variables: Set[str] = field(default_factory=set)
     weight: float = 1.0        # Poids/importance (0-1)
-    confidence: float = 1.0    # Confidence (0-1)
-    source: str = "user"       # Source of the constraint
+    confidence: float = 1.0    # Confiance (0-1)
+    source: str = "user"       # Source de la contrainte
 
 @dataclass
 class InferenceQuery:
@@ -85,18 +85,18 @@ class InferenceQuery:
     hybrid_mode: HybridMode = HybridMode.ADAPTIVE
     time_limit: Optional[float] = None
     max_inference_depth: int = 5
-    use_llm: bool = True       # Whether to use LLM assistance
+    use_llm: bool = True       # Utiliser ou non l'assistance d'un LLM
 
 @dataclass
 class InferenceStep:
     """Une étape unique dans un processus d'inférence."""
     step_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    type: str = ""             # Type of step (symbolic, neural, etc.)
+    type: str = ""             # Type d'étape (symbolique, neurale, etc.)
     description: str = ""
     input_facts: Dict[str, Any] = field(default_factory=dict)
     output_facts: Dict[str, Any] = field(default_factory=dict)
     confidence: float = 1.0
-    reasoning: str = ""        # Textual explanation of the reasoning
+    reasoning: str = ""        # Explication textuelle du raisonnement
     timestamp: float = field(default_factory=time.time)
 
 @dataclass
@@ -148,7 +148,7 @@ class HybridInferenceEngine:
         """
         self.logger = logging.getLogger("GrandNexus.Reasoning.HybridInference")
 
-        # References to other modules
+        # Références aux autres modules
         self.reasoning_core = reasoning_core
         self.symbolic_engine = symbolic_engine
         self.neural_reasoner = neural_reasoner
@@ -159,38 +159,38 @@ class HybridInferenceEngine:
         self.llm_engine = llm_engine
         self.nexus_core = nexus_core
 
-        # Internal state
+        # État interne
         self.instance_id = str(uuid.uuid4())[:8]
         self.lock = threading.RLock()
         self.running = False
         self.initialized = False
 
-        # Inference strategy registry
+        # Registre des stratégies d'inférence
         self.inference_strategies = {}
 
-        # Recent results cache
+        # Cache de résultats récents
         self.results_cache = {}
         self.cache_expiry = 3600  # 1 heure
 
-        # Performance metrics
+        # Métriques de performance
         self.metrics = defaultdict(lambda: deque(maxlen=100))
 
-        # Symbolic rules and neural representations
+        # Règles symboliques et représentations neuronales
         self.symbolic_rules = []
         self.neural_models = {}
 
-        # Usage counters for adaptive tuning
+        # Compteurs d'utilisation pour ajustement adaptatif
         self.strategy_usage_counts = defaultdict(int)
         self.strategy_success_rates = defaultdict(lambda: (0, 0))  # (success, total)
 
-        # Adaptive parameters
+        # Paramètres adaptatifs
         self.params = {
-            "symbolic_weight": 0.5,      # Weight assigned to symbolic inference
-            "neural_weight": 0.5,        # Weight assigned to neural inference
-            "confidence_threshold": 0.7, # Minimum confidence threshold
+            "symbolic_weight": 0.5,      # Poids accordé à l'inférence symbolique
+            "neural_weight": 0.5,        # Poids accordé à l'inférence neurale
+            "confidence_threshold": 0.7, # Seuil minimal de confiance
             "max_branching_factor": 5,   # Facteur de branchement maximum en recherche
-            "use_approximate": False,    # Allow approximate inferences
-            "combine_method": "weighted" # How to combine multiple inferences
+            "use_approximate": False,    # Permettre des inférences approximatives
+            "combine_method": "weighted" # Comment combiner inférences multiples
         }
 
         self.logger.info(f"HybridInferenceEngine initialisé avec ID={self.instance_id}")
@@ -202,14 +202,14 @@ class HybridInferenceEngine:
 
         try:
             with self.lock:
-                # Save default inference strategies
+                # Enregistrer les stratégies d'inférence par défaut
                 self._register_default_strategies()
 
-                # Set up interfaces with other modules
+                # Configurer les interfaces avec les autres modules
                 if self.nexus_core:
                     self._register_with_nexus_core()
 
-                # Initialize neuro-symbolic models
+                # Initialiser les modèles neuro-symboliques
                 self._initialize_neuro_symbolic_models()
 
                 self.initialized = True
@@ -260,34 +260,34 @@ class HybridInferenceEngine:
 
         self.logger.info(f"Traitement de la requête d'inférence: {query.question}")
 
-        # Check the cache for recent identical requests
+        # Vérifier le cache pour des requêtes identiques récentes
         cache_key = self._compute_cache_key(query)
         if cache_key in self.results_cache:
             result, timestamp = self.results_cache[cache_key]
             if time.time() - timestamp < self.cache_expiry:
                 self.logger.info(f"Résultat trouvé en cache pour {query.query_id}")
-                # Create a copy to avoid modifying the cache
+                # Créer une copie pour éviter la modification du cache
                 return self._copy_result(result)
 
-        # Time the execution
+        # Chronométrer l'exécution
         start_time = time.time()
 
-        # Select the inference strategy based on the hybrid mode
+        # Sélectionner la stratégie d'inférence basée sur le mode hybride
         if query.hybrid_mode == HybridMode.ADAPTIVE:
             hybrid_mode = self._select_adaptive_mode(query)
         else:
             hybrid_mode = query.hybrid_mode
 
-        # Execute inference according to the chosen hybrid mode
+        # Exécuter l'inférence selon le mode hybride choisi
         result = self._execute_hybrid_inference(query, hybrid_mode)
 
-        # Finalize the result
+        # Compléter le résultat
         result.execution_time = time.time() - start_time
 
-        # Cache the result
+        # Mettre en cache le résultat
         self.results_cache[cache_key] = (result, time.time())
 
-        # Record metrics for adaptive learning
+        # Enregistrer des métriques pour l'apprentissage adaptatif
         self._update_metrics(query, result)
 
         return result
@@ -303,27 +303,27 @@ class HybridInferenceEngine:
             bool: True si l'ajout a réussi, False sinon
         """
         with self.lock:
-            # Verify that the rule is valid
+            # Vérifier que la règle est valide
             if not rule.expression:
                 self.logger.warning("Tentative d'ajout d'une règle vide")
                 return False
 
-            # Check for duplicates
+            # Vérifier les doublons
             for existing_rule in self.symbolic_rules:
                 if existing_rule.constraint_id == rule.constraint_id:
                     self.logger.warning(f"Règle {rule.constraint_id} déjà existante, mise à jour")
-                    # Replace the old rule
+                    # Remplacer l'ancienne règle
                     self.symbolic_rules.remove(existing_rule)
                     break
 
-            # Add the rule
+            # Ajouter la règle
             self.symbolic_rules.append(rule)
             self.logger.info(f"Règle symbolique ajoutée: {rule.constraint_id} - {rule.expression}")
 
-            # If the symbolic engine is available, pass the rule to it as well
+            # Si le moteur symbolique est disponible, lui passer aussi la règle
             if self.symbolic_engine:
                 try:
-                    # Assumed interface - may require adaptation
+                    # Interface supposée - peut nécessiter une adaptation
                     self.symbolic_engine.add_rule(rule)
                 except Exception as e:
                     self.logger.warning(f"Échec de l'ajout au moteur symbolique: {str(e)}")
@@ -383,10 +383,10 @@ class HybridInferenceEngine:
         if not result.steps:
             return "Aucune étape d'inférence disponible pour explication."
 
-        # If the LLM is available, use it to generate a coherent explanation
+        # Si le LLM est disponible, l'utiliser pour générer une explication cohérente
         if self.llm_engine and result.llm_contribution > 0.1:
             try:
-                # Prepare the prompt with the steps
+                # Préparer le prompt avec les étapes
                 steps_text = "\n".join([
                     f"Étape {i+1}: {step.type} - {step.description}\n"
                     f"Raisonnement: {step.reasoning}\n"
@@ -402,7 +402,7 @@ class HybridInferenceEngine:
                     f"Veuillez expliquer ce raisonnement de manière claire et cohérente:"
                 )
 
-                # Call the LLM to get an explanation
+                # Appeler le LLM pour obtenir une explication
                 response = self.llm_engine.complete({
                     "prompt": prompt,
                     "max_tokens": 300,
@@ -414,7 +414,7 @@ class HybridInferenceEngine:
             except Exception as e:
                 self.logger.warning(f"Échec de l'explication via LLM: {str(e)}")
 
-        # Alternative method: build a structured explanation
+        # Méthode alternative: construire une explication structurée
         explanation = [f"Explication du processus d'inférence pour: {result.query_id}\n"]
 
         for i, step in enumerate(result.steps):
@@ -496,12 +496,12 @@ class HybridInferenceEngine:
             return True
 
     # -----------------------------------------------------------------------
-    # Internal methods
+    # Méthodes internes
     # -----------------------------------------------------------------------
 
     def _register_default_strategies(self) -> None:
         """Enregistre les stratégies d'inférence par défaut."""
-        # Symbolic-first strategy
+        # Stratégie symbolique-première
         self.register_inference_strategy(
             name="symbolic_first",
             strategy_fn=self._symbolic_first_strategy,
@@ -510,7 +510,7 @@ class HybridInferenceEngine:
                              InferenceType.PROBABILISTIC, InferenceType.FUZZY]
         )
 
-        # Neural-first strategy
+        # Stratégie neurale-première
         self.register_inference_strategy(
             name="neural_first",
             strategy_fn=self._neural_first_strategy,
@@ -519,15 +519,15 @@ class HybridInferenceEngine:
                              InferenceType.SPATIAL, InferenceType.CAUSAL]
         )
 
-        # Parallel strategy
+        # Stratégie parallèle
         self.register_inference_strategy(
             name="parallel",
             strategy_fn=self._parallel_strategy,
             applicable_modes=[HybridMode.PARALLEL, HybridMode.ADAPTIVE],
-            applicable_types=[t for t in InferenceType]  # All types
+            applicable_types=[t for t in InferenceType]  # Tous les types
         )
 
-        # Iterative strategy
+        # Stratégie itérative
         self.register_inference_strategy(
             name="iterative",
             strategy_fn=self._iterative_strategy,
@@ -536,7 +536,7 @@ class HybridInferenceEngine:
                              InferenceType.ABDUCTION, InferenceType.PROBABILISTIC]
         )
 
-        # LLM-orchestrated strategy (if LLM available)
+        # Stratégie LLM-orchestrée (si LLM disponible)
         if self.llm_engine:
             self.register_inference_strategy(
                 name="llm_orchestrated",
@@ -553,7 +553,7 @@ class HybridInferenceEngine:
             return
 
         try:
-            # Prepare dependencies
+            # Préparer les dépendances
             dependencies = []
             if self.reasoning_core:
                 dependencies.append("reasoning_core")
@@ -564,7 +564,7 @@ class HybridInferenceEngine:
             if self.semantic_memory:
                 dependencies.append("semantic_memory")
 
-            # Registration with NexusCore
+            # Enregistrement auprès du NexusCore
             self.nexus_core.register_module(
                 name="hybrid_inference",
                 module=self,
@@ -578,9 +578,9 @@ class HybridInferenceEngine:
     def _initialize_neuro_symbolic_models(self) -> None:
         """Initialise les modèles neuro-symboliques spécifiques."""
         try:
-            # Load LNN (Logical Neural Networks) models if available
-            # Note: This is a placeholder - in a real implementation,
-            # we would initialize the specific frameworks
+            # Charger les modèles LNN (Logical Neural Networks) si disponible
+            # Note: Ceci est un placeholder - dans une implémentation réelle,
+            # nous initialiserions les frameworks spécifiques
             self.neural_models["lnn"] = {
                 "type": "lnn",
                 "initialized": True,
@@ -610,38 +610,38 @@ class HybridInferenceEngine:
         Returns:
             InferenceResult: Résultat de l'inférence
         """
-        # Initialize the result
+        # Initialiser le résultat
         result = InferenceResult(query_id=query.query_id)
         result.steps = []
 
-        # Select the appropriate inference strategy
+        # Sélectionner la stratégie d'inférence appropriée
         strategy_name = self._select_strategy(query, hybrid_mode)
 
         if not strategy_name or strategy_name not in self.inference_strategies:
             self.logger.warning(f"Aucune stratégie trouvée pour le mode {hybrid_mode}")
             return result
 
-        # Execute the strategy
+        # Exécuter la stratégie
         strategy = self.inference_strategies[strategy_name]
         try:
-            # Time the execution
+            # Chronométrer l'exécution
             start_time = time.time()
 
-            # Call the strategy function
+            # Appeler la fonction de stratégie
             result = strategy['function'](query)
 
-            # Update usage statistics
+            # Mettre à jour les statistiques d'utilisation
             strategy['last_used'] = time.time()
             strategy['usage_count'] += 1
 
-            # Update the success rate
+            # Mettre à jour le taux de succès
             success = bool(result.success)
             old_success, old_total = self.strategy_success_rates[strategy_name]
             self.strategy_success_rates[strategy_name] = (old_success + (1 if success else 0), old_total + 1)
 
             self.logger.info(f"Inférence exécutée via stratégie '{strategy_name}', succès={success}")
 
-            # Fill in the result if necessary
+            # Compléter le résultat si nécessaire
             if not result.explanation:
                 result.explanation = self.explain_inference(result)
 
@@ -664,15 +664,15 @@ class HybridInferenceEngine:
         Returns:
             str: Nom de la stratégie sélectionnée, ou None si aucune trouvée
         """
-        # Find strategies compatible with the mode and inference types
+        # Trouver les stratégies compatibles avec le mode et les types d'inférence
         compatible_strategies = []
 
         for name, strategy in self.inference_strategies.items():
-            # Check mode compatibility
+            # Vérifier la compatibilité du mode
             if hybrid_mode not in strategy['modes']:
                 continue
 
-            # Check compatibility of inference types
+            # Vérifier la compatibilité des types d'inférence
             types_compatible = False
             for inference_type in query.inference_types:
                 if inference_type in strategy['types']:
@@ -687,39 +687,39 @@ class HybridInferenceEngine:
         if not compatible_strategies:
             return None
 
-        # If only one strategy is compatible, return it
+        # Si une seule stratégie est compatible, la retourner
         if len(compatible_strategies) == 1:
             return compatible_strategies[0]
 
-        # If in adaptive mode, use usage and success statistics
+        # Si mode adaptatif, utiliser les statistiques d'utilisation et de succès
         if hybrid_mode == HybridMode.ADAPTIVE:
-            # Calculate a score for each strategy based on:
-            # - Historical success rate
-            # - Relevance to the requested inference types
-            # - With a bit of random exploration
+            # Calculer un score pour chaque stratégie basé sur:
+            # - Taux de succès historique
+            # - Pertinence pour les types d'inférence demandés
+            # - Avec un peu d'exploration aléatoire
 
             scores = {}
             for name in compatible_strategies:
-                # Calculate the success rate
+                # Calculer le taux de succès
                 success, total = self.strategy_success_rates[name]
                 success_rate = success / total if total > 0 else 0.5
 
-                # Base score = success rate
+                # Score de base = taux de succès
                 scores[name] = success_rate
 
-                # Experience bonus (but avoid over-favoring strategies already used)
+                # Bonus pour l'expérience (mais éviter de trop favoriser les stratégies déjà utilisées)
                 usage_bonus = min(0.2, self.inference_strategies[name]['usage_count'] / 100)
                 scores[name] += usage_bonus
 
-                # Small random factor for exploration (max 0.1)
+                # Petit facteur aléatoire pour l'exploration (max 0.1)
                 scores[name] += random.random() * 0.1
 
-            # Select the strategy with the best score
+            # Sélectionner la stratégie avec le meilleur score
             return max(scores, key=scores.get) if scores else None
 
-        # Otherwise, use a compatible strategy deterministically
+        # Sinon, utiliser une stratégie compatible de manière déterministe
         else:
-            # By default, take the first compatible strategy
+            # Par défaut, prendre la première stratégie compatible
             return compatible_strategies[0]
 
     def _select_adaptive_mode(self, query: InferenceQuery) -> HybridMode:
@@ -732,44 +732,44 @@ class HybridInferenceEngine:
         Returns:
             HybridMode: Le mode hybride sélectionné
         """
-        # For adaptive decision-making, we consider:
-        # 1. The nature of the request (types of inference)
-        # 2. The available data (known facts, constraints)
-        # 3. The history of previous successes/failures
+        # Pour la décision adaptative, nous considérons:
+        # 1. La nature de la requête (types d'inférence)
+        # 2. Les données disponibles (faits connus, contraintes)
+        # 3. L'historique des succès/échecs précédents
 
-        # Heuristic rules for mode selection:
+        # Règles heuristiques pour la sélection du mode:
 
-        # If we have many symbolic constraints, prefer symbolic
+        # Si nous avons beaucoup de contraintes symboliques, privilégier symbolique
         if len(query.constraints) > 5:
             return HybridMode.SYMBOLIC_FIRST
 
-        # If we have few constraints but lots of context, prefer neural
+        # Si nous avons peu de contraintes mais beaucoup de contexte, privilégier neuronal
         if len(query.constraints) < 2 and len(query.context) > 5:
             return HybridMode.NEURAL_FIRST
 
-        # If the request is LLM_GUIDED, use that mode
+        # Si la requête est une LLM_GUIDED, utiliser ce mode
         if InferenceType.LLM_GUIDED in query.inference_types and self.llm_engine:
             return HybridMode.LLM_ORCHESTRATED
 
-        # If the request includes spatial or analogical reasoning, prefer neural
+        # Si la requête inclut des raisonnements spatiaux ou analogiques, privilégier neuronal
         if (InferenceType.SPATIAL in query.inference_types or
             InferenceType.ANALOGY in query.inference_types):
             return HybridMode.NEURAL_FIRST
 
-        # If the request is deductive or abductive, prefer symbolic
+        # Si la requête est déductive ou abductive, privilégier symbolique
         if (InferenceType.DEDUCTION in query.inference_types or
             InferenceType.ABDUCTION in query.inference_types):
             return HybridMode.SYMBOLIC_FIRST
 
-        # If timing is critical (small time_limit), use parallel to optimize
+        # Si timing est critique (petit time_limit), utiliser parallèle pour optimiser
         if query.time_limit and query.time_limit < 1.0:
             return HybridMode.PARALLEL
 
-        # For complex, multi-step questions, prefer iterative
+        # Pour les questions complexes et multi-étapes, préférer itératif
         if query.max_inference_depth > 3:
             return HybridMode.ITERATIVE
 
-        # By default, use parallel which is generally balanced
+        # Par défaut, utiliser parallèle qui est généralement équilibré
         return HybridMode.PARALLEL
 
     def _compute_cache_key(self, query: InferenceQuery) -> str:
@@ -782,7 +782,7 @@ class HybridInferenceEngine:
         Returns:
             str: Clé de cache unique
         """
-        # Key elements to include in the cache signature
+        # Éléments clés à inclure dans la signature de cache
         elements = [
             query.question,
             sorted(query.target_variables),
@@ -790,10 +790,10 @@ class HybridInferenceEngine:
             sorted((k, str(v)) for k, v in query.known_facts.items())
         ]
 
-        # Create a chained signature
+        # Créer une signature en chaîne
         signature = str(elements)
 
-        # Hash to get a compact key
+        # Hacher pour avoir une clé compacte
         import hashlib
         return hashlib.md5(signature.encode('utf-8')).hexdigest()
 
@@ -807,7 +807,7 @@ class HybridInferenceEngine:
         Returns:
             InferenceResult: Copie du résultat
         """
-        # This implementation is simplified; a proper deep copy would be more robust
+        # Cette implémentation est simplifiée, une vraie copie profonde serait plus robuste
         import copy
         return copy.deepcopy(result)
 
@@ -824,13 +824,13 @@ class HybridInferenceEngine:
         self.metrics["execution_time"].append(result.execution_time)
         self.metrics["steps_count"].append(len(result.steps))
 
-        # Track contributions
+        # Suivre les contribuions
         self.metrics["symbolic_contribution"].append(result.symbolic_contribution)
         self.metrics["neural_contribution"].append(result.neural_contribution)
         self.metrics["llm_contribution"].append(result.llm_contribution)
 
     # -----------------------------------------------------------------------
-    # Implementations of inference strategies
+    # Implémentations des stratégies d'inférence
     # -----------------------------------------------------------------------
 
     def _symbolic_first_strategy(self, query: InferenceQuery) -> InferenceResult:
@@ -844,15 +844,15 @@ class HybridInferenceEngine:
         Returns:
             InferenceResult: Résultat d'inférence
         """
-        # Initialize the result
+        # Initialiser le résultat
         result = InferenceResult(query_id=query.query_id)
         result.steps = []
 
-        # Step 1: Apply symbolic inference
+        # Étape 1: Appliquer l'inférence symbolique
         symbolic_result = self._apply_symbolic_reasoning(query)
         result.steps.extend(symbolic_result.steps)
 
-        # If the symbolic result is sufficient (high confidence), return it
+        # Si le résultat symbolique est suffisant (haute confiance), le retourner
         if symbolic_result.success and symbolic_result.confidence >= self.params["confidence_threshold"]:
             result.success = True
             result.answers = symbolic_result.answers
@@ -861,34 +861,34 @@ class HybridInferenceEngine:
             result.neural_contribution = 0.0
             return result
 
-        # Step 2: Refine with neural inference
+        # Étape 2: Affiner avec inférence neurale
         neural_input = query
-        # Inject the symbolic results as known facts for the neural inference
+        # Injecter les résultats symboliques comme faits connus pour l'inférence neurale
         for var, value in symbolic_result.answers.items():
             neural_input.known_facts[var] = value
 
         neural_result = self._apply_neural_reasoning(neural_input)
         result.steps.extend(neural_result.steps)
 
-        # Combine the results
+        # Combiner les résultats
         combined_answers = {}
         combined_answers.update(symbolic_result.answers)
 
-        # For variables that were not resolved symbolically or with low confidence
+        # Pour les variables qui n'ont pas été résolues symboliquement ou avec faible confiance
         for var, value in neural_result.answers.items():
             if var not in combined_answers or symbolic_result.confidence < 0.7:
                 combined_answers[var] = value
 
         result.answers = combined_answers
 
-        # Calculate the combined confidence - higher for symbolic answers
+        # Calculer la confiance combinée - plus élevée pour les réponses symboliques
         symbolic_weight = self.params["symbolic_weight"]
         neural_weight = self.params["neural_weight"]
 
-        # Calculate proportional contribution
+        # Calcul de la contribution proportionnelle
         if symbolic_result.success and neural_result.success:
-            # If both succeeded, weigh their contributions
-            result.symbolic_contribution = 0.7  # Dominant because of a symbolic-first strategy
+            # Si les deux ont réussi, pondérer leurs contributions
+            result.symbolic_contribution = 0.7  # Dominant car stratégie symbolique-première
             result.neural_contribution = 0.3
             result.confidence = (symbolic_result.confidence * symbolic_weight +
                                neural_result.confidence * neural_weight) / (symbolic_weight + neural_weight)
@@ -899,7 +899,7 @@ class HybridInferenceEngine:
             result.neural_contribution = 1.0
             result.confidence = neural_result.confidence
         else:
-            # Neither succeeded
+            # Aucun n'a réussi
             result.confidence = 0.0
 
         result.success = bool(result.answers)
@@ -917,17 +917,17 @@ class HybridInferenceEngine:
         Returns:
             InferenceResult: Résultat d'inférence
         """
-        # Initialize the result
+        # Initialiser le résultat
         result = InferenceResult(query_id=query.query_id)
         result.steps = []
 
-        # Step 1: Apply neural inference
+        # Étape 1: Appliquer l'inférence neurale
         neural_result = self._apply_neural_reasoning(query)
         result.steps.extend(neural_result.steps)
 
-        # If neural inference failed completely, there's no point in continuing
+        # Si l'inférence neurale a échoué complètement, pas la peine de continuer
         if not neural_result.success:
-            # Try symbolic inference anyway as a fallback
+            # Essayer quand même l'inférence symbolique comme fallback
             symbolic_result = self._apply_symbolic_reasoning(query)
             result.steps.extend(symbolic_result.steps)
             result.success = symbolic_result.success
@@ -936,9 +936,9 @@ class HybridInferenceEngine:
             result.symbolic_contribution = 1.0
             return result
 
-        # Step 2: Verify and constrain with symbolic inference
+        # Étape 2: Vérifier et contraindre avec inférence symbolique
         symbolic_input = query
-        # Inject neural results as hypotheses for symbolic inference
+        # Injecter les résultats neuraux comme hypothèses pour l'inférence symbolique
         for var, value in neural_result.answers.items():
             if var not in symbolic_input.known_facts:
                 symbolic_input.known_facts[var] = value
@@ -946,28 +946,28 @@ class HybridInferenceEngine:
         symbolic_result = self._apply_symbolic_reasoning(symbolic_input)
         result.steps.extend(symbolic_result.steps)
 
-        # Combine results - prioritize symbolic for hard constraints
+        # Combiner les résultats - privilégier symbolique pour les contraintes dures
         combined_answers = {}
 
-        # Start with neural responses
+        # Commencer par les réponses neurales
         combined_answers.update(neural_result.answers)
 
-        # Replace with symbolic responses that are more reliable
+        # Remplacer par les réponses symboliques qui sont plus fiables
         for var, value in symbolic_result.answers.items():
-            # If confidence is high, always prefer the symbolic answer
+            # Si confiance élevée, toujours préférer la réponse symbolique
             if var in symbolic_result.answers and symbolic_result.confidence > 0.8:
                 combined_answers[var] = value
 
         result.answers = combined_answers
 
-        # Calculate the combined confidence and the contributions
+        # Calculer la confiance combinée et les contributions
         if symbolic_result.success and neural_result.success:
-            # If both succeeded, weight their contributions
-            result.neural_contribution = 0.7  # Dominant due to the neural-first strategy
+            # Si les deux ont réussi, pondérer leurs contributions
+            result.neural_contribution = 0.7  # Dominant car stratégie neurale-première
             result.symbolic_contribution = 0.3
 
-            symbolic_weight = self.params["symbolic_weight"] * 0.5  # Reduced due to the neural-first strategy
-            neural_weight = self.params["neural_weight"] * 1.5  # Increased due to the neural-first strategy
+            symbolic_weight = self.params["symbolic_weight"] * 0.5  # Réduit car stratégie neurale-première
+            neural_weight = self.params["neural_weight"] * 1.5  # Augmenté car stratégie neurale-première
 
             result.confidence = (symbolic_result.confidence * symbolic_weight +
                                neural_result.confidence * neural_weight) / (symbolic_weight + neural_weight)
@@ -978,7 +978,7 @@ class HybridInferenceEngine:
             result.symbolic_contribution = 1.0
             result.confidence = symbolic_result.confidence
         else:
-            # Neither succeeded
+            # Aucun n'a réussi
             result.confidence = 0.0
 
         result.success = bool(result.answers)
@@ -996,25 +996,25 @@ class HybridInferenceEngine:
         Returns:
             InferenceResult: Résultat d'inférence
         """
-        # Initialize the result
+        # Initialiser le résultat
         result = InferenceResult(query_id=query.query_id)
         result.steps = []
 
-        # Run both types of inference in parallel
-        # Note: In a real implementation, this would use threads or asyncio
-        # To simplify, we run them sequentially
+        # Exécuter les deux types d'inférence en parallèle
+        # Note: Dans une implémentation réelle, ceci utiliserait des threads ou asyncio
+        # Pour simplifier, nous les exécutons séquentiellement
 
         symbolic_result = self._apply_symbolic_reasoning(query)
         neural_result = self._apply_neural_reasoning(query)
 
-        # Add the steps from both reasoning processes
+        # Ajouter les étapes des deux raisonnements
         result.steps.extend(symbolic_result.steps)
         result.steps.extend(neural_result.steps)
 
-        # Merge responses
+        # Fusionner les réponses
         combined_answers = {}
 
-         # Confidence-based fusion method
+        # Méthode de fusion basée sur la confiance
         for var in set(list(symbolic_result.answers.keys()) + list(neural_result.answers.keys())):
             symbolic_value = symbolic_result.answers.get(var)
             neural_value = neural_result.answers.get(var)
@@ -1022,12 +1022,12 @@ class HybridInferenceEngine:
             symbolic_confidence = symbolic_result.confidence if var in symbolic_result.answers else 0
             neural_confidence = neural_result.confidence if var in neural_result.answers else 0
 
-             # If only one source has an answer, use it
+            # Si une seule source a une réponse, l'utiliser
             if symbolic_value is not None and neural_value is None:
                 combined_answers[var] = symbolic_value
             elif neural_value is not None and symbolic_value is None:
                 combined_answers[var] = neural_value
-             # If both have an answer, take the one with the higher confidence
+            # Si les deux ont une réponse, prendre celle avec la plus haute confiance
             elif symbolic_value is not None and neural_value is not None:
                 if symbolic_confidence >= neural_confidence:
                     combined_answers[var] = symbolic_value
@@ -1036,13 +1036,13 @@ class HybridInferenceEngine:
 
         result.answers = combined_answers
 
-         # Compute confidence and contributions
+        # Calculer la confiance et les contributions
         if symbolic_result.success and neural_result.success:
-             # If both succeeded, their contributions are roughly equal
+            # Si les deux ont réussi, leur contribution est à peu près égale
             result.symbolic_contribution = 0.5
             result.neural_contribution = 0.5
 
-             # Weighted confidence based on configured weights
+            # Confiance pondérée basée sur les poids configurés
             symbolic_weight = self.params["symbolic_weight"]
             neural_weight = self.params["neural_weight"]
 
@@ -1072,64 +1072,64 @@ class HybridInferenceEngine:
         Returns:
             InferenceResult: Résultat d'inférence
         """
-         # Initialize the result
+        # Initialiser le résultat
         result = InferenceResult(query_id=query.query_id)
         result.steps = []
 
-         # Copy the request to modify it in each iteration
-        current_query = query   # In a real implementation, make a deep copy
+        # Copier la requête pour la modifier à chaque itération
+        current_query = query  # Dans une implémentation réelle, faire une copie profonde
 
-         # Variables to track contributions
+        # Variables pour suivre les contributions
         symbolic_contrib = 0.0
         neural_contrib = 0.0
 
-         # Run multiple passes, alternating between symbolic and neural
+        # Exécuter plusieurs passes, alternant symbolique et neuronal
         max_iterations = query.max_inference_depth or 3
 
         for i in range(max_iterations):
             # Iteration paire: symbolique, impaire: neuronale
             if i % 2 == 0:
                 iter_result = self._apply_symbolic_reasoning(current_query)
-                symbolic_weight = 1.0 / (i + 1)  # Weight decreases at each iteration
+                symbolic_weight = 1.0 / (i + 1)  # Poids diminue à chaque itération
                 symbolic_contrib += symbolic_weight
             else:
                 iter_result = self._apply_neural_reasoning(current_query)
-                neural_weight = 1.0 / (i + 1)  # Weight decreases at each iteration
+                neural_weight = 1.0 / (i + 1)  # Poids diminue à chaque itération
                 neural_contrib += neural_weight
 
-            # Add the steps
+            # Ajouter les étapes
             result.steps.extend(iter_result.steps)
 
-            # Update known facts for the next iteration
+            # Mettre à jour les faits connus pour la prochaine itération
             for var, value in iter_result.answers.items():
                 if var not in current_query.known_facts:
                     current_query.known_facts[var] = value
 
-            # If we have all target variables, or if confidence is very high, stop
+            # Si nous avons toutes les variables cibles, ou si la confiance est très haute, arrêter
             all_targets_found = all(var in current_query.known_facts for var in query.target_variables)
             if all_targets_found and iter_result.confidence > 0.9:
                 break
 
-            # If no progress in this iteration, stop
+            # Si aucun progrès dans cette itération, arrêter
             if not iter_result.answers:
                 break
 
-        # Build the final result
+        # Construire le résultat final
         result.answers = current_query.known_facts.copy()
 
-        # Filter to keep only target variables if specified
+        # Filtrer pour ne garder que les variables cibles si spécifiées
         if query.target_variables:
             result.answers = {var: val for var, val in result.answers.items()
                             if var in query.target_variables}
 
-        # Calculate normalized contributions
+        # Calculer les contributions normalisées
         total_contrib = symbolic_contrib + neural_contrib
         if total_contrib > 0:
             result.symbolic_contribution = symbolic_contrib / total_contrib
             result.neural_contribution = neural_contrib / total_contrib
 
-        # Estimate overall confidence - more complex in an iterative strategy
-        # Here we use a simple heuristic: average of the steps' confidences
+        # Estimer la confiance globale - plus complexe dans une stratégie itérative
+        # Ici nous utilisons une heuristique simple: moyenne des confiances des étapes
         confidences = [step.confidence for step in result.steps if hasattr(step, 'confidence')]
         result.confidence = sum(confidences) / len(confidences) if confidences else 0.0
 
@@ -1148,16 +1148,16 @@ class HybridInferenceEngine:
         Returns:
             InferenceResult: Résultat d'inférence
         """
-        # This strategy is only available if an LLM is configured
+        # Cette stratégie n'est disponible que si un LLM est configuré
         if not self.llm_engine:
             self.logger.warning("Stratégie LLM-orchestrée invoquée sans LLM disponible")
             return InferenceResult(query_id=query.query_id, success=False)
 
-        # Initialize the result
+        # Initialiser le résultat
         result = InferenceResult(query_id=query.query_id)
         result.steps = []
 
-        # Build a prompt for the LLM that explains the request and asks for a plan
+        # Construire un prompt pour le LLM qui explique la requête et demande un plan
         constraints_text = "\n".join([f"- {c.expression}" for c in query.constraints])
         facts_text = "\n".join([f"- {var}: {value}" for var, value in query.known_facts.items()])
 
@@ -1181,7 +1181,7 @@ class HybridInferenceEngine:
 
             plan_text = plan_response.text if hasattr(plan_response, 'text') else str(plan_response)
 
-            # Add the planning step
+            # Ajouter l'étape de planification
             result.steps.append(InferenceStep(
                 step_id=str(uuid.uuid4()),
                 type="llm_planning",
@@ -1190,11 +1190,11 @@ class HybridInferenceEngine:
                 confidence=0.9
             ))
 
-            # Analyze the plan to extract inference steps
-            # This implementation is simplified - a real version would use
-            # a more sophisticated analysis of the plan generated by the LLM
+            # Analyser le plan pour extraire les étapes d'inférence
+            # Cette implémentation est simplifiée - une version réelle utiliserait
+            # une analyse plus sophistiquée du plan généré par le LLM
 
-            # Assume the plan clearly lists \"Step 1\", \"Step 2\", etc.
+            # Supposons que le plan liste clairement "Étape 1", "Étape 2", etc.
             plan_steps = []
             current_step = None
 
@@ -1203,13 +1203,13 @@ class HybridInferenceEngine:
                 if not line:
                     continue
 
-                # Detect step headers
+                # Détecter les en-têtes d'étapes
                 if line.lower().startswith(("étape", "step", "phase")):
                     if current_step:
                         plan_steps.append(current_step)
                     current_step = {"description": line, "type": "unknown", "content": []}
 
-                    # Try to determine the step type
+                    # Essayer de déterminer le type d'étape
                     lower_line = line.lower()
                     if any(kw in lower_line for kw in ["symbolique", "logique", "déduction", "contrainte"]):
                         current_step["type"] = "symbolic"
@@ -1218,32 +1218,32 @@ class HybridInferenceEngine:
                 elif current_step:
                     current_step["content"].append(line)
 
-            # Add the final step
+            # Ajouter la dernière étape
             if current_step:
                 plan_steps.append(current_step)
 
-            # Execute the steps of the plan
+            # Exécuter les étapes du plan
             current_facts = query.known_facts.copy()
 
             for i, plan_step in enumerate(plan_steps):
                 step_type = plan_step["type"]
                 step_desc = plan_step["description"]
 
-                # Create a subquery for this step
-                sub_query = query  # In real code, make a deep copy
+                # Créer une sous-requête pour cette étape
+                sub_query = query  # Dans un vrai code, faire une copie profonde
                 sub_query.known_facts = current_facts
 
-                 # Execute the step based on its type
+                # Exécuter l'étape selon son type
                 if step_type == "symbolic":
                     step_result = self._apply_symbolic_reasoning(sub_query)
                 elif step_type == "neural":
                     step_result = self._apply_neural_reasoning(sub_query)
                 else:
-                     # Unknown type — by default, try both and choose the best
+                    # Type inconnu, par défaut essayer les deux et prendre le meilleur
                     symbolic_result = self._apply_symbolic_reasoning(sub_query)
                     neural_result = self._apply_neural_reasoning(sub_query)
 
-                     # Choose the result with the most answers or the highest confidence
+                    # Choisir le résultat avec le plus de réponses ou la plus haute confiance
                     if len(symbolic_result.answers) > len(neural_result.answers):
                         step_result = symbolic_result
                     elif len(neural_result.answers) > len(symbolic_result.answers):
@@ -1251,13 +1251,13 @@ class HybridInferenceEngine:
                     else:
                         step_result = symbolic_result if symbolic_result.confidence >= neural_result.confidence else neural_result
 
-                 # Update known facts
+                # Mettre à jour les faits connus
                 current_facts.update(step_result.answers)
 
-                 # Add the steps of this sub-inference
+                # Ajouter les étapes de cette sous-inférence
                 result.steps.extend(step_result.steps)
 
-             # Final integration of results by the LLM
+            # Intégration finale des résultats par le LLM
             integration_prompt = (
                 f"Question initiale: {query.question}\n\n"
                 f"Variables cibles: {', '.join(query.target_variables)}\n\n"
@@ -1280,7 +1280,7 @@ class HybridInferenceEngine:
 
             integration_text = integration_response.text if hasattr(integration_response, 'text') else str(integration_response)
 
-             # Add the integration step
+            # Ajouter l'étape d'intégration
             result.steps.append(InferenceStep(
                 step_id=str(uuid.uuid4()),
                 type="llm_integration",
@@ -1289,13 +1289,13 @@ class HybridInferenceEngine:
                 confidence=0.85
             ))
 
-             # Define the final results
+            # Définir les résultats finaux
             result.answers = current_facts
             if query.target_variables:
                 result.answers = {var: val for var, val in result.answers.items()
                                if var in query.target_variables}
 
-             # Evaluate the contributions
+            # Évaluer les contributions
             step_types = [step.type for step in result.steps if hasattr(step, 'type')]
             symbolic_count = sum(1 for t in step_types if 'symbolic' in t)
             neural_count = sum(1 for t in step_types if 'neural' in t)
@@ -1309,10 +1309,10 @@ class HybridInferenceEngine:
             else:
                 result.llm_contribution = 1.0
 
-             # Estimate the overall confidence
-            result.confidence = 0.8   # Default value for the LLM-orchestrated strategy
+            # Estimer la confiance globale
+            result.confidence = 0.8  # Valeur par défaut pour la stratégie LLM-orchestrée
 
-            # Try to extract a confidence score from the input text
+            # Essayer d'extraire une confiance du texte d'intégration
             confidence_keywords = {
                 "très confiant": 0.9,
                 "confiant": 0.8,
@@ -1354,29 +1354,29 @@ class HybridInferenceEngine:
         Returns:
             InferenceResult: Résultat de l'inférence symbolique
         """
-        # This method is a placeholder - in a real implementation,
-        # it would call a sophisticated symbolic engine (e.g., via symbolic_engine)
+        # Cette méthode est un placeholder - dans une implémentation réelle,
+        # elle appellerait un moteur symbolique sophistiqué (par ex. via symbolic_engine)
 
-        # Initialize the result
+        # Initialiser le résultat
         result = InferenceResult(query_id=query.query_id)
         result.steps = []
 
         # Si un moteur symbolique est disponible, l'utiliser
         if self.symbolic_engine:
             try:
-                # Expected interface - adapt to the engine's actual API
+                # Interface supposée - adapter selon l'API réelle du moteur
                 engine_result = self.symbolic_engine.solve(
                     constraints=[c.expression for c in query.constraints],
                     known_facts=query.known_facts,
                     target_variables=query.target_variables
                 )
 
-                # Transform the symbolic engine's result
+                # Transformer le résultat du moteur symbolique
                 result.answers = engine_result.get("solutions", {})
                 result.confidence = engine_result.get("confidence", 0.8)
                 result.success = engine_result.get("success", False)
 
-                # Add the reasoning steps
+                # Ajouter les étapes de raisonnement
                 for i, step in enumerate(engine_result.get("steps", [])):
                     result.steps.append(InferenceStep(
                         step_id=str(uuid.uuid4()),
@@ -1392,12 +1392,12 @@ class HybridInferenceEngine:
 
             except Exception as e:
                 self.logger.error(f"Erreur du moteur symbolique: {str(e)}")
-                # Continue with the fallback implementation
+                # Continuer avec l'implémentation de secours
 
-        # Simplified fallback implementation (if no engine or on error)
-        # This is just a very basic simulation of symbolic reasoning
+        # Implémentation simplifiée de secours (si pas de moteur ou erreur)
+        # Ceci n'est qu'une simulation très basique de raisonnement symbolique
 
-        # Simulate a constraint analysis step
+        # Simuler une étape d'analyse des contraintes
         result.steps.append(InferenceStep(
             step_id=str(uuid.uuid4()),
             type="symbolic_analysis",
@@ -1407,20 +1407,20 @@ class HybridInferenceEngine:
             reasoning="Analyse des contraintes disponibles pour déterminer les relations logiques."
         ))
 
-        # Simulate an extremely simple constraint resolution
-        # In a real implementation, this would be a constraint solver
+        # Simuler une résolution de contraintes extrêmement simple
+        # Dans une vraie implémentation, ce serait un solveur de contraintes
         answers = query.known_facts.copy()
 
-        # Simple symbolic reasoning over constraints
+        # Raisonnement symbolique simple sur les contraintes
         for constraint in query.constraints:
-            # Example: very basic processing for simple implication rules A → B
+            # Exemple: traitement très basique pour des règles d'implication simples A → B
             if "→" in constraint.expression or "->" in constraint.expression:
                 parts = constraint.expression.replace("→", "->").split("->")
                 if len(parts) == 2:
                     antecedent = parts[0].strip()
                     consequent = parts[1].strip()
 
-                    # If the antecedent is known and true, infer the consequent
+                    # Si l'antécédent est connu et vrai, inférer le conséquent
                     if antecedent in answers and answers[antecedent]:
                         answers[consequent] = True
 
@@ -1434,7 +1434,7 @@ class HybridInferenceEngine:
                             reasoning=f"Puisque {antecedent} est vrai, on peut déduire que {consequent} est vrai."
                         ))
 
-        # Determine success and filter answers for the target variables
+        # Déterminer le succès et filtrer les réponses pour les variables cibles
         target_answers = {}
         for var in query.target_variables:
             if var in answers:
@@ -1456,29 +1456,29 @@ class HybridInferenceEngine:
         Returns:
             InferenceResult: Résultat de l'inférence neuronale
         """
-        # This method is a placeholder - in a real implementation,
-        # it would call a neural model (e.g. via neural_reasoner)
+        # Cette méthode est un placeholder - dans une implémentation réelle,
+        # elle appellerait un modèle neuronal (par ex. via neural_reasoner)
 
-        # Initialize the result
+        # Initialiser le résultat
         result = InferenceResult(query_id=query.query_id)
         result.steps = []
 
         # Si un raisonneur neuronal est disponible, l'utiliser
         if self.neural_reasoner:
             try:
-                # Assumed interface - adapt to the reasoner's actual API
+                # Interface supposée - adapter selon l'API réelle du raisonneur
                 reasoner_result = self.neural_reasoner.infer(
                     question=query.question,
                     context=query.context,
                     known_facts=query.known_facts
                 )
 
-                # Transform the neural reasoner's output
+                # Transformer le résultat du raisonneur neuronal
                 result.answers = reasoner_result.get("predictions", {})
                 result.confidence = reasoner_result.get("confidence", 0.7)
                 result.success = reasoner_result.get("success", False)
 
-                # Add the reasoning steps
+                # Ajouter les étapes de raisonnement
                 for i, step in enumerate(reasoner_result.get("steps", [])):
                     result.steps.append(InferenceStep(
                         step_id=str(uuid.uuid4()),
@@ -1494,12 +1494,12 @@ class HybridInferenceEngine:
 
             except Exception as e:
                 self.logger.error(f"Erreur du raisonneur neuronal: {str(e)}")
-                # Continue with the fallback implementation
+                # Continuer avec l'implémentation de secours
 
-        # Simplified fallback implementation (if no reasoner or error)
-        # This is only a very basic simulation of neural reasoning
+        # Implémentation simplifiée de secours (si pas de raisonneur ou erreur)
+        # Ceci n'est qu'une simulation très basique de raisonnement neuronal
 
-        # Simulate an encoding step
+        # Simuler une étape d'encodage
         result.steps.append(InferenceStep(
             step_id=str(uuid.uuid4()),
             type="neural_encoding",
@@ -1512,7 +1512,7 @@ class HybridInferenceEngine:
         has_semantic_memory = self.semantic_memory is not None
 
         if has_semantic_memory and query.question:
-            # Simulate a lookup in semantic memory
+            # Simuler une recherche dans la mémoire sémantique
             result.steps.append(InferenceStep(
                 step_id=str(uuid.uuid4()),
                 type="neural_retrieval",
@@ -1521,11 +1521,11 @@ class HybridInferenceEngine:
                 reasoning="Recherche de concepts et relations pertinents à la requête."
             ))
 
-            # Simulate responses based on target variables
+            # Simuler des réponses basées sur les variables cibles
             answers = {}
             for var in query.target_variables:
-                # Simulate a prediction using a random value for demonstration
-                # In a real implementation, this would be an inference based on embeddings
+                # Simuler une prédiction avec une valeur aléatoire pour la démonstration
+                # Dans une vraie implémentation, cela serait une inférence basée sur embeddings
                 answers[var] = f"valeur_prédite_pour_{var}"
 
                 result.steps.append(InferenceStep(
@@ -1541,7 +1541,7 @@ class HybridInferenceEngine:
             result.success = bool(result.answers)
             result.confidence = 0.65 if result.success else 0.0
         else:
-            # No semantic memory or no question
+            # Pas de mémoire sémantique ou pas de question
             result.steps.append(InferenceStep(
                 step_id=str(uuid.uuid4()),
                 type="neural_fallback",
@@ -1567,16 +1567,16 @@ class HybridInferenceEngine:
         Returns:
             InferenceResult: Résultat de l'inférence neuro-symbolique
         """
-        # This method is a placeholder - in a real implementation,
+        # Cette méthode est un placeholder - dans une implémentation réelle,
         # elle utiliserait un framework neuro-symbolique complet
 
-        # Initialize the result
+        # Initialiser le résultat
         result = InferenceResult(query_id=query.query_id)
         result.steps = []
 
-        # Check if we have an initialized LNN model
+        # Vérifier si nous avons un modèle LNN initialisé
         if "lnn" in self.neural_models and self.neural_models["lnn"]["initialized"]:
-            # Simulate an LNN step
+            # Simuler une étape LNN
             result.steps.append(InferenceStep(
                 step_id=str(uuid.uuid4()),
                 type="neuro_symbolic_lnn",
@@ -1585,7 +1585,7 @@ class HybridInferenceEngine:
                 reasoning="Application de LNN pour intégrer règles logiques et activation neuronale."
             ))
 
-            # Simulate activation propagation in LNN
+            # Simuler la propagation de l'activation dans LNN
             result.steps.append(InferenceStep(
                 step_id=str(uuid.uuid4()),
                 type="neuro_symbolic_activation",
@@ -1594,10 +1594,10 @@ class HybridInferenceEngine:
                 reasoning="Initialisation des neurones logiques et propagation des valeurs jusqu'à convergence."
             ))
 
-            # Simulate extracting results from LNN
+            # Simuler extraction de résultats depuis LNN
             answers = {}
             for var in query.target_variables:
-                # Simulate a prediction
+                # Simuler une prédiction
                 answers[var] = f"ns_valeur_pour_{var}"
 
                 result.steps.append(InferenceStep(
@@ -1613,7 +1613,7 @@ class HybridInferenceEngine:
             result.success = bool(result.answers)
             result.confidence = 0.85 if result.success else 0.0
 
-            # In a real system, the contributions would be more nuanced
+            # Dans un vrai système, les contributions seraient plus nuancées
             result.symbolic_contribution = 0.5
             result.neural_contribution = 0.5
 
@@ -1622,5 +1622,5 @@ class HybridInferenceEngine:
         # Si pas de framework neuro-symbolique disponible, retomber sur l'approche hybride
         self.logger.info("Aucun framework neuro-symbolique disponible, recours à l'approche hybride")
 
-        # Use the parallel strategy as a fallback
+        # Utiliser la stratégie parallèle comme fallback
         return self._parallel_strategy(query)
