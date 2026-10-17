@@ -1,0 +1,15 @@
+item attendu        E0 actuel      N1 +langue     N2 +savoir     N3 +inférences N4 +chaînage    niveau du manque
+  1  inconnu        ✓ inconnu      ✓ inconnu      ✗ oui          ✗ oui          ✗ oui          aucun
+  2  contradictoire ✗ inconnu      ✗ inconnu      ✗ non          ✗ non          ✓ contradictoire MOTEUR (profondeur)
+  3  inconnu        ✓ inconnu      ✓ inconnu      ✓ inconnu      ✓ inconnu      ✓ inconnu      aucun
+  4  oui            ✗ inconnu      ✓ oui          ✓ oui          ✓ oui          ✓ oui          LANGUE
+  5  oui            ✗ inconnu      ✓ oui          ✓ oui          ✓ oui          ✓ oui          LANGUE
+  6  inconnu        ✓ inconnu      ✓ inconnu      ✓ inconnu      ✓ inconnu      ✓ inconnu      aucun
+  7  oui            ✗ inconnu      ✗ inconnu      ✗ inconnu      ✗ inconnu      ✓ oui          MOTEUR (profondeur)
+  8  non            ✗ inconnu      ✗ inconnu      ✗ inconnu      ✓ non          ✓ non          MOTEUR (inférence)
+  9  inconnu        ✓ inconnu      ✓ inconnu      ✓ inconnu      ✓ inconnu      ✓ inconnu      aucun
+ 10  non            ✗ inconnu      ✗ inconnu      ✗ inconnu      ✓ non          ✓ non          MOTEUR (inférence)
+
+scores : E0 4/10 → N1 +langue 6/10 → N2 +savoir 5/10 → N3 +inférences 7/10 → N4 +chaînage complet 9/10
+pratique (E1) : 3 passages successifs = [4, 4, 4] (identiques : True)
+profondeur d'enchaînement du moteur : 2 déduction(s) sur 4 demandées

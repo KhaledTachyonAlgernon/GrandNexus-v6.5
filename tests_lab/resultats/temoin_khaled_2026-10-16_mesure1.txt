@@ -1,0 +1,39 @@
+== tests_lab/temoin_khaled_2026-10-16.json (10 items)
+
+✓  1. attendu=inconnu        obtenu=inconnu        L'eau est dans la bouteille. La bouteille est dans le sac de Paul. Pau
+✗  2. attendu=contradictoire obtenu=inconnu        Un carnivore ne mange que de la viande. Les chats sont des carnivores.
+        fait     | un carnivore ne mange que de la viande. -> mange(carnivore,que_viande)
+        universel| les chats sont des carnivores. -> ∀x is(x,chat) ⇒ is(x,carnivore)
+        fait     | luna est une chatte. -> is(luna,chatte)
+        fait     | luna mange une pomme. -> mange(luna,pomme)
+        but      | luna respecte-elle son régime de carnivore ? -> respecte(luna,son_régime_carnivore)
+✓  3. attendu=inconnu        obtenu=inconnu        Some programing languages are easy to learn. Python is a programming l
+✗  4. attendu=oui            obtenu=inconnu        Si Alice invite Bob, il vient à la fête avec son frère. Alice invite B
+        règle    | si alice invite bob, il vient à la fête avec son frère. -> invite(alice,bob) ⇒ vient(alice,à_fête_avec_son_fr
+        fait     | alice invite bob. -> invite(alice,bob)
+        but      | le frère de bob vient-il à la fête ? -> de(frère,bob_vient_à_fête)
+✗  5. attendu=oui            obtenu=inconnu        Do software developers write code? A typical software developer uses a
+        but      | do software developers write code? -> developer(software,write_code)
+        fait     | a typical software developer uses a computer to build applications. -> software(typical,developer_use_compute
+        fait     | building applications requires writing code. -> application(building,require_writing_code)
+        but      | do software developers write code? -> developer(software,write_code)
+✓  6. attendu=inconnu        obtenu=inconnu        Quand le soleil se couche, les lumières de la ville s'allument. Le sol
+✗  7. attendu=oui            obtenu=inconnu        The key is inside the drawer. The drawer is part of the desk. The desk
+        fait     | the key is inside the drawer. -> in(key,drawer)
+        fait     | the drawer is part of the desk. -> is(drawer,part_of_desk)
+        fait     | the desk is located in the office. -> is(desk,located_in_office)
+        but      | is the key in the office? -> in(key,office)
+✗  8. attendu=non            obtenu=inconnu        Aucun mammifère n'a de plumes. Le pingouin a des plumes. Le pingouin e
+        universel| aucun mammifère ne a de plumes. -> ∀x is(x,mammifère) ⇒ not a(x,plume)
+        fait     | le pingouin a des plumes. -> a(pingouin,plume)
+        but      | le pingouin est-il un mammifère ? -> is(pingouin,mammifère)
+✓  9. attendu=inconnu        obtenu=inconnu        If a server crashes, the website goes offline. The website is offline.
+✗ 10. attendu=non            obtenu=inconnu        Le réservoir était vide ce matin. Le mécanicien l'a rempli à midi. Le
+        fait     | le réservoir était vide ce matin. -> était(réservoir,vide_ce_matin)
+        fait     | le mécanicien le a rempli à midi. -> le(mécanicien,rempli_à_midi)
+        but      | le réservoir est-il vide cet après-midi ? -> is(réservoir,vide_cet_après-midi)
+
+voie perception→raisonnement : 4/10   | orchestrateur : 4/10
+témoins : toujours-oui 3, toujours-non 2, toujours-inconnu 4, toujours-contradictoire 1, hasard 2.6
+« oui » à tort : 0
+K1 (> meilleur témoin 4.0) : ÉCHOUÉ | K2 (0 oui à tort) : PASSÉ

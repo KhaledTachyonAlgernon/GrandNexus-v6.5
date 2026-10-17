@@ -1,0 +1,17 @@
+{
+  "note": "Témoin rédigé par Khaled, figé tel quel (texte + question + réponse attendue) AVANT toute exécution. Libellés anglais convertis : yes->oui, unknown->inconnu. Mesure unique ; aucun réglage sur ce jeu.",
+  "auteur": "Khaled",
+  "redige_le": "2026-10-16",
+  "items": [
+    ["L'eau est dans la bouteille. La bouteille est dans le sac de Paul. Paul a oublié son sac à la maison. L'eau est-elle à la maison ?", "inconnu"],
+    ["Un carnivore ne mange que de la viande. Les chats sont des carnivores. Luna est une chatte. Luna mange une pomme. Luna respecte-t-elle son régime de carnivore ?", "contradictoire"],
+    ["Some programing languages are easy to learn. Python is a programming language. Is Python easy to learn?", "inconnu"],
+    ["Si Alice invite Bob, il vient à la fête avec son frère. Alice invite Bob. Le frère de Bob vient-il à la fête ?", "oui"],
+    ["Do software developers write code? A typical software developer uses a computer to build applications. Building applications requires writing code. Do software developers write code?", "oui"],
+    ["Quand le soleil se couche, les lumières de la ville s'allument. Le soleil est couché. Est-ce le soleil qui allume les lumières ?", "inconnu"],
+    ["The key is inside the drawer. The drawer is part of the desk. The desk is located in the office. Is the key in the office?", "oui"],
+    ["Aucun mammifère n'a de plumes. Le pingouin a des plumes. Le pingouin est-il un mammifère ?", "non"],
+    ["If a server crashes, the website goes offline. The website is offline. Did the server crash?", "inconnu"],
+    ["Le réservoir était vide ce matin. Le mécanicien l'a rempli à midi. Le réservoir est-il vide cet après-midi ?", "non"]
+  ]
+}

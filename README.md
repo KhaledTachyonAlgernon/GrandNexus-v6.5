@@ -1,15 +1,15 @@
-# GrandNexus 6.5 (fix for 6.4 + 15/05 layer)
+# GrandNexus 6.5 (fix for 6.4 + May 15 layer)
 
 ## Colab
 ```python
-# optional (unlocks 8 modules from 15/05, see the 3 levels in the file):
+# optional (unlocks 8 modules from May 15; see the 3 levels in the file):
 # !pip install -q -r /content/GrandNexus/requirements-extra.txt
 !unzip -q -o GrandNexus_v6.5.zip -d /content
 %cd /content/GrandNexus
 !python tools/smoke_test.py              # imports module by module (bugs vs missing dependencies)
 !python tools/integration_test.py        # startup + capabilities
-!python tools/lab_reasoning.py           # perception→reasoning path vs baselines + orchestrator
-!python tools/layer_runtime_test.py 3    # entire system running on a started NexusCore
+!python tools/lab_reasoning.py           # perception→reasoning pipeline vs baselines + orchestrator
+!python tools/layer_runtime_test.py 3    # whole system running on a started NexusCore
 ```
 ```python
 import sys; sys.path.insert(0, "/content/GrandNexus")
