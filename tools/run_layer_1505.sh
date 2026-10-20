@@ -15,9 +15,10 @@ declare -A MSG=(
  [r27_orchestrator_session_filter_first]="R27 orchestrateur: filtre de session avant la coupe (réponse courante évincée par les anciennes)"
  [r28_working_memory_v2_name]="R28 WorkingMemory 15/05 renommée working_memory_v2 (cohabite avec le cœur), AffectRegulator suit"
  [r29_layer_flat_imports]="R29 couche 15/05: import os (ExplainabilityEngine) et time (VirtualGripper) manquants"
+ [r30_semantic_v2_dataclass]="R30 SemanticMemory 15/05: default_factory (Python 3.11+) + garde annoy absent (vu sur Colab)"
  [r17_resource_history]="R17 ResourceManager.get_usage_history (demandé par l'orchestrateur)"
 )
-for r in r15_orchestrator_imports r16_layer_bugs r17_resource_history r18_orchestrator_state r19_working_memory_sort r20_working_memory_item r21_orchestrator_session_output r22_orchestrator_cleanup r23_orchestrator_memory_queries r26_attention_v2_default r27_orchestrator_session_filter_first r28_working_memory_v2_name r29_layer_flat_imports; do
+for r in r15_orchestrator_imports r16_layer_bugs r17_resource_history r18_orchestrator_state r19_working_memory_sort r20_working_memory_item r21_orchestrator_session_output r22_orchestrator_cleanup r23_orchestrator_memory_queries r26_attention_v2_default r27_orchestrator_session_filter_first r28_working_memory_v2_name r29_layer_flat_imports r30_semantic_v2_dataclass; do
   python3 repairs.py "$r"
   (cd .. && git add -A && git commit -qm "${MSG[$r]}")
 done
