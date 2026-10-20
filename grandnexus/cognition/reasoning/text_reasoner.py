@@ -75,12 +75,20 @@ class TextReasoner(CognitiveModuleBase):
                                  "trace": ["control baseline: the LLM answered directly"]},
                                 [], [], "llm_direct", perception, t0)
 
-        if mode in ("llm", "hybrid") and QUANTITY_QUESTION.search(text):
-            out = self._answer_quantity(text, perception, t0)
-            if out is not None:
-                if write_back:
-                    self._write_back(text, [], out)
-                return out
+        if QUANTITY_QUESTION.search(text):
+            if mode in ("llm", "hybrid"):
+                out = self._answer_quantity(text, perception, t0)
+                if out is not None:
+                    if write_back:
+                        self._write_back(text, [], out)
+                    return out
+            else:
+                # the grammar has no arithmetic: say so instead of forcing a meaningless goal
+                return self._result("inconnu", [], 0.0,
+                                    {"facts": [], "rules": [], "goals": ["quantity"],
+                                     "unparsed": ["quantity question: needs the LLM translator (mode 'llm' or 'hybrid')"],
+                                     "trace": ["quantity | detected, not handled by the grammar"]},
+                                    [], [], mode, perception, t0)
 
         if mode in ("grammar", "hybrid"):
             out = self._decide(self._from_grammar(text), max_steps, perception, t0)

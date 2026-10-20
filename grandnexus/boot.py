@@ -123,18 +123,27 @@ def _step(system: GrandNexusSystem, name: str, fn, verbose: bool = False):
         return None
 
 
-def find_anthropic_key(explicit: Optional[str] = None) -> Optional[str]:
-    """API key lookup: explicit argument, then ANTHROPIC_API_KEY env var, then Colab Secrets."""
+def find_anthropic_key(explicit: Optional[str] = None, with_reason: bool = False):
+    """API key lookup: explicit argument, then ANTHROPIC_API_KEY env var, then Colab Secrets.
+    with_reason=True returns (key, reason) so a missing key can be diagnosed precisely."""
     import os
     if explicit:
-        return explicit
+        return (explicit, "argument api_key") if with_reason else explicit
     if os.environ.get("ANTHROPIC_API_KEY"):
-        return os.environ["ANTHROPIC_API_KEY"]
+        return (os.environ["ANTHROPIC_API_KEY"], "variable d'environnement") if with_reason else os.environ["ANTHROPIC_API_KEY"]
+    reason = "pas dans Colab (ni argument ni variable d'environnement)"
     try:
         from google.colab import userdata  # type: ignore
-        return userdata.get("ANTHROPIC_API_KEY")
-    except Exception:
-        return None
+        key = userdata.get("ANTHROPIC_API_KEY")
+        return (key, "Secrets Colab") if with_reason else key
+    except ImportError:
+        pass
+    except Exception as e:  # SecretNotFoundError, NotebookAccessError, TimeoutException...
+        hints = {"SecretNotFoundError": "aucun secret nommé exactement ANTHROPIC_API_KEY",
+                 "NotebookAccessError": "secret présent mais l'accès « notebook » est désactivé (interrupteur dans 🔑)",
+                 "TimeoutException": "fenêtre d'autorisation Colab non validée à temps"}
+        reason = hints.get(type(e).__name__, f"{type(e).__name__}: {e}")
+    return (None, reason) if with_reason else None
 
 
 def boot(db_file: Optional[str] = None, start_threads: bool = False,
@@ -210,11 +219,13 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
             _step(gn, "graphe partagé injecté", _share_graph, verbose)
         def _llm():
             # Language layer backed by Claude, used ONLY as a translator (see llm_translator.py)
-            key = find_anthropic_key(api_key)
-            if llm == "off" or (llm == "auto" and not key):
-                return "désactivé (pas de clé ANTHROPIC_API_KEY)" if not key else "désactivé"
+            if llm == "off":
+                return "désactivé (llm='off')"
+            key, why = find_anthropic_key(api_key, with_reason=True)
+            if not key and llm == "auto":
+                return f"DÉSACTIVÉ — clé non trouvée : {why}"
             if not key:
-                raise RuntimeError("llm='on' mais aucune clé ANTHROPIC_API_KEY (Secrets Colab ou variable d'environnement)")
+                raise RuntimeError(f"llm='on' mais clé ANTHROPIC_API_KEY non trouvée : {why}")
             try:
                 import anthropic  # noqa: F401
             except ImportError:
@@ -228,7 +239,7 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
                 raise RuntimeError("LLMEngine.initialize() a échoué (voir logs)")
             gn.llm_engine = engine
             gn.translator = LLMTranslator(llm_engine=engine, model=llm_model, nexus_core=gn.core)
-            return llm_model
+            return f"{llm_model} (clé : {why})"
         _step(gn, "LLM traducteur (Anthropic)", _llm, verbose)
 
         def _pathways():
