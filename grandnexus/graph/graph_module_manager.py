@@ -879,3 +879,20 @@ class GraphModuleManager:
         except Exception as e:
             self.logger.error(f"Error during shutdown: {e}")
 
+# --- repair 6.6.2: interface expected by ModuleRegistry / NexusCore
+def _gmm_start(self) -> bool:
+    self.running = True
+    return True
+
+def _gmm_stop(self) -> bool:
+    self.running = False
+    return True
+
+def _gmm_handle_message(self, message):
+    event = message.get("type") or message.get("message_type") or ""
+    if event.startswith("graph.") and self.nexus_core is not None and hasattr(self.nexus_core, "publish_event"):
+        self.nexus_core.publish_event(event, message.get("content") or {}, source=message.get("source"))
+
+for _name, _fn in (("start", _gmm_start), ("stop", _gmm_stop), ("handle_message", _gmm_handle_message)):
+    if not hasattr(GraphModuleManager, _name):
+        setattr(GraphModuleManager, _name, _fn)
