@@ -1197,7 +1197,9 @@ class LLMEngine:
             # Use completion API
             prompt = request_params["prompt"]
             max_tokens = request_params.get("max_tokens", 1000)
-            temperature = request_params.get("temperature", 0.7)
+            temperature = request_params.get("temperature")  # None = model default (repair 6.6.2)
+            _sampling = {} if (temperature is None or model in getattr(self, "_no_temperature_models", set())) \
+                else {"temperature": temperature}
             streaming = request_params.get("streaming", False)
 
             if streaming:
@@ -1211,7 +1213,7 @@ class LLMEngine:
                 with client.messages.stream(
                     model=model,
                     max_tokens=max_tokens,
-                    temperature=temperature,
+                    **_sampling,
                     messages=[
                         {"role": "user", "content": prompt}
                     ]
@@ -1229,24 +1231,34 @@ class LLMEngine:
                 )
             else:
                 # Non-streaming request
-                response = client.messages.create(
-                    model=model,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    **_system,
-                    messages=[
-                        {"role": "user", "content": prompt}
-                    ]
-                )
+                _kwargs = dict(model=model, max_tokens=max_tokens, **_sampling, **_system,
+                               messages=[{"role": "user", "content": prompt}])
+                try:
+                    response = client.messages.create(**_kwargs)
+                except Exception as _e:  # repair 6.6.2: models that reject sampling parameters
+                    if "temperature" in str(_e).lower() and "temperature" in _kwargs:
+                        if not hasattr(self, "_no_temperature_models"):
+                            self._no_temperature_models = set()
+                        self._no_temperature_models.add(model)
+                        _kwargs.pop("temperature")
+                        self.logger.warning(f"{model} rejects temperature: retrying without it")
+                        response = client.messages.create(**_kwargs)
+                    else:
+                        raise
 
-                response_text = response.content[0].text
+                response_text = "".join(getattr(b, "text", "") for b in response.content)
 
-                return LLMResponse(
+                result = LLMResponse(
                     text=response_text,
                     tokens_used=response.usage.output_tokens,
-                    model_used=model,
+                    model_used=getattr(response, "model", model),
                     request_id=request_params.get("request_id", "")
                 )
+                result.receipt = {"api_id": getattr(response, "id", None),            # repair 6.6.2
+                                  "api_model": getattr(response, "model", model),
+                                  "input_tokens": getattr(response.usage, "input_tokens", None),
+                                  "output_tokens": getattr(response.usage, "output_tokens", None)}
+                return result
 
         elif request_type == "embedding":
             # Anthropic doesn't provide embeddings, fallback to OpenAI if available

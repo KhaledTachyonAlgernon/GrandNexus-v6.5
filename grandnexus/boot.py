@@ -233,7 +233,7 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
             from grandnexus.llm_interface.llm_engine import LLMEngine, LLMConfig, LLMProvider
             from grandnexus.llm_interface.llm_translator import LLMTranslator
             engine = LLMEngine(LLMConfig(provider=LLMProvider.ANTHROPIC, model_name=llm_model, api_key=key,
-                                         temperature=0.0, max_tokens=1500, synergy_with_memory=False,
+                                         temperature=None, max_tokens=1500, synergy_with_memory=False,
                                          synergy_with_graph=False))
             if not engine.initialize():
                 raise RuntimeError("LLMEngine.initialize() a échoué (voir logs)")
@@ -278,7 +278,8 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
             gn.core.register_module("reasoning_engine", ReasoningEngine(mods.get("text_reasoner"), gn.working))
             gn.core.register_module("learning_manager", LearningManager(mods.get("learning_core")))
             gn.resource_manager = ResourceManager(nexus_core=gn.core)
-            gn.core.register_module("resource_manager", gn.resource_manager)
+            if "resource_manager" not in getattr(gn.core, "modules", {}):   # it may register itself
+                gn.core.register_module("resource_manager", gn.resource_manager)
         _step(gn, "adaptateurs orchestrateur (15/05)", _adapters, verbose)
 
         def _orchestrator():

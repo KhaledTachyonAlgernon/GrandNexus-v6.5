@@ -128,19 +128,27 @@ class LLMTranslator(CognitiveModuleBase):
         self.use_knowledge = use_knowledge
         self.nexus_core = nexus_core
         self.cache: Dict[str, Dict[str, Any]] = {}
-        self.stats = {"calls": 0, "cache_hits": 0, "failures": 0, "rejected_items": 0, "seconds": 0.0}
+        self.stats = {"calls": 0, "cache_hits": 0, "failures": 0, "rejected_items": 0, "seconds": 0.0,
+                      "input_tokens": 0, "output_tokens": 0}
+        self.receipts: List[Dict[str, Any]] = []   # proof of real API calls (message id, model, tokens)
 
     # -- transport ------------------------------------------------------------
-    def _call(self, system: str, prompt: str) -> str:
+    def _call(self, system: str, prompt: str, task: str = "") -> str:
         t0 = time.time()
         self.stats["calls"] += 1
         try:
             if self._call_fn is not None:
                 return self._call_fn(system, prompt)
             from grandnexus.llm_interface.llm_engine import LLMRequest
+            # no temperature: recent Claude models reject non-default sampling parameters
             resp = self.llm_engine.complete(LLMRequest(
-                prompt=prompt, temperature=0.0, max_tokens=self.max_tokens, request_type="chat",
+                prompt=prompt, temperature=None, max_tokens=self.max_tokens, request_type="chat",
                 context={"model": self.model, "system": system}))
+            receipt = getattr(resp, "receipt", None)
+            if receipt:
+                self.receipts.append({"task": task, "seconds": round(time.time() - t0, 2), **receipt})
+                self.stats["input_tokens"] += receipt.get("input_tokens") or 0
+                self.stats["output_tokens"] += receipt.get("output_tokens") or 0
             return getattr(resp, "text", "") or ""
         finally:
             self.stats["seconds"] += time.time() - t0
@@ -151,7 +159,7 @@ class LLMTranslator(CognitiveModuleBase):
             self.stats["cache_hits"] += 1
             return self.cache[key]["parsed"], self.cache[key]["raw"]
         try:
-            raw = self._call(system, prompt)
+            raw = self._call(system, prompt, task)
         except Exception as e:
             self.stats["failures"] += 1
             log.warning(f"LLM call failed ({task}): {type(e).__name__}: {e}")
