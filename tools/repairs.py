@@ -423,6 +423,41 @@ def r29_layer_flat_imports():
     add_import("grandnexus/cognition/metacognition/explainability_engine.py", "import os")
     add_import("grandnexus/actuators/drivers/virtual_gripper.py", "import time")
 
+def r30_semantic_v2_dataclass():
+    """Révélé sur Colab (sentence_transformers y est installé, le module va plus loin) :
+    - Python 3.11+ refuse une instance de dataclass comme valeur par défaut -> default_factory ;
+    - _init_annoy testait la CLASSE AnnoyCfg (toujours vraie) au lieu de la config, puis
+      appelait AnnoyIndex même si annoy n'est pas installé -> NameError à la création."""
+    p = "grandnexus/memory/semantic_v2.py"
+    for name, cls in (("pg", "PGVectorCfg"), ("neo4j", "Neo4jCfg"), ("annoy", "AnnoyCfg")):
+        replace_once(p, f"    {name}: Optional[{cls}] = {cls}()\n",
+                     f"    {name}: Optional[{cls}] = field(default_factory={cls})  # réparation 6.5\n")
+    replace_once(p, "    def _init_annoy(self):\n        if not AnnoyCfg:\n            return\n",
+                 "    def _init_annoy(self):\n        if not self.cfg.annoy or \"AnnoyIndex\" not in globals():  # réparation 6.5\n"
+                 "            return\n")
+
+def r31_interruptible_loops():
+    """Arrêt en mode vivant : 17 s et des threads survivants. Les boucles de fond
+    dormaient avec time.sleep() alors qu'un Event d'arrêt existait déjà : stop()
+    attendait la fin du sommeil (jusqu'à 30 s) puis abandonnait après 5 s de join.
+    Les sommeils de boucle deviennent des attentes interruptibles sur cet Event."""
+    p = "grandnexus/cognition/metacognition/monitor.py"
+    s = read(p)
+    for old in ("                time.sleep(self.monitoring_interval)\n",
+                "                time.sleep(self.alert_check_interval)\n",
+                "                time.sleep(min(30.0, next_report_time - current_time))\n"):
+        assert s.count(old) == 1, old
+        s = s.replace(old, old.replace("time.sleep(", "self.stop_event.wait("))
+    assert s.count("                time.sleep(5.0)  # Sleep longer on error\n") == 3
+    s = s.replace("                time.sleep(5.0)  # Sleep longer on error\n",
+                  "                self.stop_event.wait(5.0)  # Sleep longer on error (réparation 6.5 : interruptible)\n")
+    write(p, s)
+    p = "grandnexus/core/errorRecoveryManager.py"
+    replace_once(p, "                time.sleep(self.health_check_interval)\n",
+                 "                self.stop_monitoring.wait(self.health_check_interval)  # réparation 6.5 : interruptible\n")
+    replace_once(p, "                time.sleep(5)  # Court sommeil en cas d'erreur\n",
+                 "                self.stop_monitoring.wait(5)  # Court sommeil en cas d'erreur (interruptible)\n")
+
 if __name__ == "__main__":
     globals()[sys.argv[1]]()
     print("ok", sys.argv[1])

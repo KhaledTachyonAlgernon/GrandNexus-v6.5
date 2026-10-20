@@ -725,11 +725,11 @@ class CognitiveMonitor:
                 self._calculate_derived_metrics()
 
                 # Sleep until next collection cycle
-                time.sleep(self.monitoring_interval)
+                self.stop_event.wait(self.monitoring_interval)
 
             except Exception as e:
                 self.logger.error(f"Error in monitoring loop: {str(e)}")
-                time.sleep(5.0)  # Sleep longer on error
+                self.stop_event.wait(5.0)  # Sleep longer on error (réparation 6.5 : interruptible)
 
     def _alert_check_loop(self) -> None:
         """Loop that checks for metrics crossing alert thresholds"""
@@ -741,11 +741,11 @@ class CognitiveMonitor:
                 self._check_alert_thresholds()
 
                 # Sleep until next check
-                time.sleep(self.alert_check_interval)
+                self.stop_event.wait(self.alert_check_interval)
 
             except Exception as e:
                 self.logger.error(f"Error in alert check loop: {str(e)}")
-                time.sleep(5.0)  # Sleep longer on error
+                self.stop_event.wait(5.0)  # Sleep longer on error (réparation 6.5 : interruptible)
 
     def _report_generation_loop(self) -> None:
         """Loop that generates periodic performance reports"""
@@ -763,11 +763,11 @@ class CognitiveMonitor:
                     next_report_time = current_time + self.report_interval
 
                 # Sleep for a bit
-                time.sleep(min(30.0, next_report_time - current_time))
+                self.stop_event.wait(min(30.0, next_report_time - current_time))
 
             except Exception as e:
                 self.logger.error(f"Error in report generation loop: {str(e)}")
-                time.sleep(5.0)  # Sleep longer on error
+                self.stop_event.wait(5.0)  # Sleep longer on error (réparation 6.5 : interruptible)
                 next_report_time = time.time() + self.report_interval
 
     def _collect_system_metrics(self) -> None:

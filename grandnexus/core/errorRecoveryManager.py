@@ -325,10 +325,10 @@ class ErrorRecoveryManager:
         while not self.stop_monitoring.is_set():
             try:
                 self._check_module_health()
-                time.sleep(self.health_check_interval)
+                self.stop_monitoring.wait(self.health_check_interval)  # réparation 6.5 : interruptible
             except Exception as e:
                 self.logger.error(f"Erreur dans la surveillance de l'état: {e}")
-                time.sleep(5)  # Court sommeil en cas d'erreur
+                self.stop_monitoring.wait(5)  # Court sommeil en cas d'erreur (interruptible)
 
         self.logger.info("Thread de surveillance de l'état arrêté")
 

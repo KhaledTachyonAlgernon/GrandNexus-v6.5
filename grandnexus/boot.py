@@ -47,7 +47,8 @@ class GrandNexusSystem:
             print(f"{'OK  ' if s.ok else 'ÉCHEC'} {s.name:<38} {s.seconds:6.2f}s"
                   + ("" if s.ok else f"\n       └─ {s.error}"))
         n = sum(s.ok for s in self.report)
-        print(f"==> {n}/{len(self.report)} étapes de démarrage réussies")
+        print(f"==> {n}/{len(self.report)} étapes de démarrage réussies | mode : {self.mode}"
+              + ("" if self.mode == "vivant" else " (NexusCore assemblé mais non démarré : gn.start() pour le lancer)"))
 
     def modules(self) -> Dict[str, Any]:
         out = {}
@@ -57,14 +58,47 @@ class GrandNexusSystem:
                 out.update(getattr(self.cognition, attr, {}) or {})
         return out
 
+    def start(self) -> bool:
+        """Mode VIVANT : démarre NexusCore, qui démarre à son tour tous les modules
+        enregistrés (boucles de fond, messagerie asynchrone, orchestrateur)."""
+        if self.core is None:
+            return False
+        if getattr(self.core, "running", False):
+            return True
+        ok = self.core.start()
+        print(f"NexusCore démarré : {ok} | modules vivants : {len(getattr(self.core, 'modules', {}))}")
+        return ok
+
+    @property
+    def mode(self) -> str:
+        return "vivant" if self.core is not None and getattr(self.core, "running", False) else "laboratoire"
+
     def shutdown(self) -> None:
+        log = logging.getLogger("GrandNexus.Boot")
+        if self.core is not None and getattr(self.core, "running", False):
+            try:
+                self.core.stop()          # arrête les modules que NexusCore a lui-même démarrés
+            except Exception as e:
+                log.warning(f"NexusCore.stop: {e}")
+            # modules démarrés par eux-mêmes (ex. ResourceManager à sa création) : NexusCore les
+            # croit « registered » et ne les arrête pas -> on arrête tout ce qui tourne encore
+            for name, info in list(getattr(self.core, "modules", {}).items()):
+                inst = info.get("instance")
+                if getattr(inst, "running", False) is True and hasattr(inst, "stop"):
+                    try:
+                        inst.stop()
+                    except Exception as e:
+                        log.warning(f"{name}.stop: {e}")
+            return
+        # mode laboratoire : NexusCore n'a jamais été démarré, on arrête ce qui l'a été
         for obj, meth in ((self.orchestrator, "stop"), (self.resource_manager, "stop"), (self.cognition, "stop"),
-                          (self.graph_manager, "stop"), (self.core, "stop")):
+                          (self.graph_manager, "stop"),
+                          (getattr(self.core, "error_recovery", None), "shutdown")):  # lancé dès NexusCore()
             if obj is not None and hasattr(obj, meth):
                 try:
                     getattr(obj, meth)()
                 except Exception as e:
-                    logging.getLogger("GrandNexus.Boot").warning(f"{type(obj).__name__}.{meth}: {e}")
+                    log.warning(f"{type(obj).__name__}.{meth}: {e}")
 
 
 def _step(system: GrandNexusSystem, name: str, fn, verbose: bool = False):
@@ -87,10 +121,13 @@ def _step(system: GrandNexusSystem, name: str, fn, verbose: bool = False):
 def boot(db_file: Optional[str] = None, start_threads: bool = False,
          log_level: int = logging.WARNING, verbose: bool = False,
          graph_config: Optional[Dict[str, Any]] = None,
-         with_orchestrator: bool = True, orchestrator_threads: bool = False) -> GrandNexusSystem:
-    """Démarre GrandNexus.
-    start_threads=False : modules initialisés mais boucles de fond non lancées
-    (mode laboratoire, déterministe). True : CognitionManager.start()."""
+         with_orchestrator: bool = True, orchestrator_threads: bool = False,
+         start_core: bool = False) -> GrandNexusSystem:
+    """Assemble GrandNexus.
+    Par défaut : mode LABORATOIRE — tout est créé et câblé, mais NexusCore n'est pas
+    démarré (pas de boucles de fond : résultats déterministes, idéal pour mesurer).
+    start_core=True (ou gn.start() ensuite) : mode VIVANT — NexusCore démarre et
+    lance tous les modules enregistrés."""
     logging.basicConfig(level=log_level, format="%(asctime)s %(name)s %(levelname)s: %(message)s")
     logging.getLogger().setLevel(log_level)
     logging.getLogger("NexusCore").setLevel(log_level)
@@ -106,6 +143,9 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
     db_file = db_file or tempfile.mktemp(prefix="nexuscore_", suffix=".db")
 
     gn.core = _step(gn, "NexusCore", lambda: NexusCore(db_file=db_file), verbose)
+    lg = logging.getLogger("NexusCore")
+    if lg.handlers:            # NexusCore a son propre handler : évite chaque ligne en double
+        lg.propagate = False
     gn.graph = _step(gn, "GraphEngine (inmemory)", lambda: create_graph_engine("inmemory"), verbose)
     gn.working = _step(gn, "WorkingMemory", lambda: WorkingMemory(WorkingMemoryConfig()), verbose)
     gn.semantic = _step(gn, "SemanticMemory (+graphe)",
@@ -194,4 +234,6 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
             gn.orchestrator = orch
             return orch
         _step(gn, "CognitiveOrchestrator", _orchestrator, verbose)
+    if start_core:
+        _step(gn, "NexusCore.start() (mode vivant)", gn.start, verbose)
     return gn

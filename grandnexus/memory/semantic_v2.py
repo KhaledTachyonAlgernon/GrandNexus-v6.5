@@ -61,9 +61,9 @@ class AnnoyCfg:
 class SemMemConfig:
     embed_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     batch_size: int = 64
-    pg: Optional[PGVectorCfg] = PGVectorCfg()
-    neo4j: Optional[Neo4jCfg] = Neo4jCfg()
-    annoy: Optional[AnnoyCfg] = AnnoyCfg()
+    pg: Optional[PGVectorCfg] = field(default_factory=PGVectorCfg)  # réparation 6.5
+    neo4j: Optional[Neo4jCfg] = field(default_factory=Neo4jCfg)  # réparation 6.5
+    annoy: Optional[AnnoyCfg] = field(default_factory=AnnoyCfg)  # réparation 6.5
     consolidate_every: float = 30.0                # s
     tick_channel: str = "slow"
     safety_guard: Optional[str] = "safety_guard"
@@ -166,7 +166,7 @@ class SemanticMemory:
             self._pg_conn = None
 
     def _init_annoy(self):
-        if not AnnoyCfg:
+        if not self.cfg.annoy or "AnnoyIndex" not in globals():  # réparation 6.5
             return
         self._ann = AnnoyIndex(self.cfg.annoy.dim, self.cfg.annoy.metric)
         # will rebuild periodically
