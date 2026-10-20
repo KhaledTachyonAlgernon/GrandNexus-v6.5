@@ -8,6 +8,7 @@ slack_sdk
 opentelemetry-api
 opentelemetry-sdk
 GitPython
+sympy
 # Niveau 2 — clients de SERVEURS : s'importent, mais il faut un serveur qui tourne
 # (MultiAgentCoordinator -> Redis : « connection refused » ; DecisionHistoryArchive -> MongoDB : bloque)
 redis
