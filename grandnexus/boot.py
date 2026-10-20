@@ -24,6 +24,7 @@ class BootStep:
     ok: bool
     seconds: float
     error: Optional[str] = None
+    detail: Optional[str] = None
 
 
 @dataclass
@@ -37,6 +38,8 @@ class GrandNexusSystem:
     cognition: Any = None
     orchestrator: Any = None
     resource_manager: Any = None
+    llm_engine: Any = None
+    translator: Any = None
     report: List[BootStep] = field(default_factory=list)
 
     def ok(self) -> bool:
@@ -45,6 +48,7 @@ class GrandNexusSystem:
     def print_report(self) -> None:
         for s in self.report:
             print(f"{'OK  ' if s.ok else 'ÉCHEC'} {s.name:<38} {s.seconds:6.2f}s"
+                  + (f"  {s.detail}" if s.ok and s.detail else "")
                   + ("" if s.ok else f"\n       └─ {s.error}"))
         n = sum(s.ok for s in self.report)
         print(f"==> {n}/{len(self.report)} étapes de démarrage réussies | mode : {self.mode}"
@@ -107,7 +111,8 @@ def _step(system: GrandNexusSystem, name: str, fn, verbose: bool = False):
         result = fn()
         if result is False:
             raise RuntimeError("a renvoyé False (voir les logs du module)")
-        system.report.append(BootStep(name, True, time.time() - t0))
+        system.report.append(BootStep(name, True, time.time() - t0,
+                                      detail=result if isinstance(result, str) else None))
         return result
     except Exception as e:
         tb = traceback.extract_tb(e.__traceback__)[-1]
@@ -118,11 +123,27 @@ def _step(system: GrandNexusSystem, name: str, fn, verbose: bool = False):
         return None
 
 
+def find_anthropic_key(explicit: Optional[str] = None) -> Optional[str]:
+    """API key lookup: explicit argument, then ANTHROPIC_API_KEY env var, then Colab Secrets."""
+    import os
+    if explicit:
+        return explicit
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return os.environ["ANTHROPIC_API_KEY"]
+    try:
+        from google.colab import userdata  # type: ignore
+        return userdata.get("ANTHROPIC_API_KEY")
+    except Exception:
+        return None
+
+
 def boot(db_file: Optional[str] = None, start_threads: bool = False,
          log_level: int = logging.WARNING, verbose: bool = False,
          graph_config: Optional[Dict[str, Any]] = None,
          with_orchestrator: bool = True, orchestrator_threads: bool = False,
-         start_core: bool = False) -> GrandNexusSystem:
+         start_core: bool = False,
+         llm: str = "auto", llm_model: str = "claude-sonnet-5-5",
+         api_key: Optional[str] = None, reasoner_mode: Optional[str] = None) -> GrandNexusSystem:
     """Assemble GrandNexus.
     Par défaut : mode LABORATOIRE — tout est créé et câblé, mais NexusCore n'est pas
     démarré (pas de boucles de fond : résultats déterministes, idéal pour mesurer).
@@ -187,6 +208,29 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
             return n
         if gn.graph is not None:
             _step(gn, "graphe partagé injecté", _share_graph, verbose)
+        def _llm():
+            # Language layer backed by Claude, used ONLY as a translator (see llm_translator.py)
+            key = find_anthropic_key(api_key)
+            if llm == "off" or (llm == "auto" and not key):
+                return "désactivé (pas de clé ANTHROPIC_API_KEY)" if not key else "désactivé"
+            if not key:
+                raise RuntimeError("llm='on' mais aucune clé ANTHROPIC_API_KEY (Secrets Colab ou variable d'environnement)")
+            try:
+                import anthropic  # noqa: F401
+            except ImportError:
+                raise RuntimeError("paquet 'anthropic' absent : !pip install -q anthropic")
+            from grandnexus.llm_interface.llm_engine import LLMEngine, LLMConfig, LLMProvider
+            from grandnexus.llm_interface.llm_translator import LLMTranslator
+            engine = LLMEngine(LLMConfig(provider=LLMProvider.ANTHROPIC, model_name=llm_model, api_key=key,
+                                         temperature=0.0, max_tokens=1500, synergy_with_memory=False,
+                                         synergy_with_graph=False))
+            if not engine.initialize():
+                raise RuntimeError("LLMEngine.initialize() a échoué (voir logs)")
+            gn.llm_engine = engine
+            gn.translator = LLMTranslator(llm_engine=engine, model=llm_model, nexus_core=gn.core)
+            return llm_model
+        _step(gn, "LLM traducteur (Anthropic)", _llm, verbose)
+
         def _pathways():
             # voie perception -> prémisses -> raisonnement (modules ajoutés, rien remplacé)
             from grandnexus.cognition.perception.premise_extractor import PremiseExtractor
@@ -198,8 +242,11 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
                 "text_reasoner": TextReasoner(reasoning_core=mods.get("reasoning_core"),
                                               perception_core=mods.get("perception_core"),
                                               extractor=extractor, graph_engine=gn.graph,
-                                              working_memory=gn.working, nexus_core=gn.core),
+                                              working_memory=gn.working, nexus_core=gn.core,
+                                              translator=gn.translator, mode=reasoner_mode),
             }
+            if gn.translator is not None:
+                gn.cognition.extra_modules["llm_translator"] = gn.translator
             for name, mod in gn.cognition.extra_modules.items():
                 if gn.core is not None:
                     gn.core.register_module(name, mod)
