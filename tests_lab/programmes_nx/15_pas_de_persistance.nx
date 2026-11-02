@@ -1,0 +1,1 @@
+on(lamp,t1). ? on(lamp,t2).

@@ -1,0 +1,1 @@
+fly(X) => wing(X). fly(bird). not wing(bird). ? fly(bird).

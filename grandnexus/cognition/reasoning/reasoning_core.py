@@ -969,7 +969,7 @@ class ReasoningCore(CognitiveModuleBase):
                     line = line.strip()
                     if line.startswith('- ') or line.startswith('* '):
                         items.append(line[2:].strip())
-                    elif line.startswith('\d+\. '):
+                    elif re.match(r'\d+\.\s', line):  # repair 6.8: was a literal string
                         items.append(line[line.find(' ')+1:].strip())
 
                 if items:
@@ -1058,10 +1058,12 @@ class ReasoningCore(CognitiveModuleBase):
         # réparation 6.5 : contraposée (si A alors B  =>  si non-B alors non-A)
         def _neg(p):
             return p[4:] if p.startswith("not ") else "not " + p
-        _seen_rules = {(r.get("if"), r.get("then")) for r in rules if isinstance(r, dict)}
+        _seen_rules = {(tuple(r["if"]) if isinstance(r.get("if"), list) else r.get("if"), r.get("then"))
+                       for r in rules if isinstance(r, dict)}  # repair 6.7: list conditions are unhashable
         _contra = []
         for _r in rules:
-            if isinstance(_r, dict) and "if" in _r and "then" in _r and not _r.get("contrapositive"):
+            if (isinstance(_r, dict) and isinstance(_r.get("if"), str) and isinstance(_r.get("then"), str)
+                    and not _r.get("contrapositive")):
                 _c = (_neg(_r["then"]), _neg(_r["if"]))
                 if _c not in _seen_rules:
                     _seen_rules.add(_c)
@@ -1170,6 +1172,32 @@ class ReasoningCore(CognitiveModuleBase):
                     sub_steps.append(sub_step)
 
         # Add transitive conclusions
+        # repair 6.7: conjunctive rules ("if" is a list): fire when every condition is known,
+        # then propagate through one-condition rules, until nothing new appears
+        _conj = [r for r in rules if isinstance(r, dict) and isinstance(r.get("if"), list) and r.get("then")]
+        _changed = bool(_conj)
+        while _changed and len(_known) < 5000:
+            _changed = False
+            for _r in _conj:
+                if _r["then"] in _known or not all(c in _known for c in _r["if"]):
+                    continue
+                _stack = [{"id": str(uuid.uuid4()), "statement": _r["then"],
+                           "confidence": _r.get("confidence", 0.95),
+                           "derived_from": {"rule": _r, "premises": list(_r["if"])}}]
+                _known.add(_r["then"])
+                _changed = True
+                while _stack:
+                    _c = _stack.pop()
+                    new_conclusions.append(_c)
+                    supporting_evidence[_c["id"]] = [f"Derived: {_c['statement']}"]
+                    for _r2 in rules:
+                        if (isinstance(_r2, dict) and isinstance(_r2.get("if"), str)
+                                and _r2["if"] == _c["statement"] and _r2.get("then") not in _known):
+                            _known.add(_r2["then"])
+                            _stack.append({"id": str(uuid.uuid4()), "statement": _r2["then"],
+                                           "confidence": min(_c["confidence"], _r2.get("confidence", 0.95)),
+                                           "derived_from": {"rule": _r2, "prior_conclusion": _c}})
+
         conclusions.extend(new_conclusions)
 
         # Calculate overall confidence

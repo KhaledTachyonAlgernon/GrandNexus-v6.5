@@ -546,6 +546,169 @@ def r33_llm_engine_anthropic():
                     **_system,
                     messages=['''))
 
+def r34_anthropic_sampling_and_receipts():
+    """Seen on Colab: recent Claude models reject a non-default `temperature`
+    (400 "temperature is deprecated for this model"), and LLMEngine always sent one.
+    - temperature is sent only when explicitly set, and dropped (with one retry) if the
+      model rejects it; the model is remembered so the retry happens once;
+    - every successful call leaves a receipt (API message id, model, input/output tokens)
+      on the response, so real API usage can be proven from inside GrandNexus."""
+    p = "grandnexus/llm_interface/llm_engine.py"
+    replace_once(p, '''        _system = {"system": request_params["system"]} if request_params.get("system") else {}
+
+        if request_type == "completion" or request_type == "chat":
+            # Use completion API
+            prompt = request_params["prompt"]
+            max_tokens = request_params.get("max_tokens", 1000)
+            temperature = request_params.get("temperature", 0.7)''',
+                 '''        _system = {"system": request_params["system"]} if request_params.get("system") else {}
+
+        if request_type == "completion" or request_type == "chat":
+            # Use completion API
+            prompt = request_params["prompt"]
+            max_tokens = request_params.get("max_tokens", 1000)
+            temperature = request_params.get("temperature")  # None = model default (repair 6.6.2)
+            _sampling = {} if (temperature is None or model in getattr(self, "_no_temperature_models", set())) \\
+                else {"temperature": temperature}''')
+    replace_once(p, '''                with client.messages.stream(
+                    model=model,
+                    max_tokens=max_tokens,
+                    temperature=temperature,''', '''                with client.messages.stream(
+                    model=model,
+                    max_tokens=max_tokens,
+                    **_sampling,''')
+    replace_once(p, '''                response = client.messages.create(
+                    model=model,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    **_system,
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ]
+                )
+
+                response_text = response.content[0].text
+
+                return LLMResponse(
+                    text=response_text,
+                    tokens_used=response.usage.output_tokens,
+                    model_used=model,
+                    request_id=request_params.get("request_id", "")
+                )''', '''                _kwargs = dict(model=model, max_tokens=max_tokens, **_sampling, **_system,
+                               messages=[{"role": "user", "content": prompt}])
+                try:
+                    response = client.messages.create(**_kwargs)
+                except Exception as _e:  # repair 6.6.2: models that reject sampling parameters
+                    if "temperature" in str(_e).lower() and "temperature" in _kwargs:
+                        if not hasattr(self, "_no_temperature_models"):
+                            self._no_temperature_models = set()
+                        self._no_temperature_models.add(model)
+                        _kwargs.pop("temperature")
+                        self.logger.warning(f"{model} rejects temperature: retrying without it")
+                        response = client.messages.create(**_kwargs)
+                    else:
+                        raise
+
+                response_text = "".join(getattr(b, "text", "") for b in response.content)
+
+                result = LLMResponse(
+                    text=response_text,
+                    tokens_used=response.usage.output_tokens,
+                    model_used=getattr(response, "model", model),
+                    request_id=request_params.get("request_id", "")
+                )
+                result.receipt = {"api_id": getattr(response, "id", None),            # repair 6.6.2
+                                  "api_model": getattr(response, "model", model),
+                                  "input_tokens": getattr(response.usage, "input_tokens", None),
+                                  "output_tokens": getattr(response.usage, "output_tokens", None)}
+                return result''')
+
+def r35_graph_manager_interface():
+    """ModuleRegistry refused GraphModuleManager ("provides neither start() nor
+    handle_message()"), seen as an ERROR in the Colab log. start()/stop() are added, and
+    handle_message() forwards point-to-point "graph.*" messages to the event bus where the
+    manager's handlers already listen."""
+    append("grandnexus/graph/graph_module_manager.py", '''
+# --- repair 6.6.2: interface expected by ModuleRegistry / NexusCore
+def _gmm_start(self) -> bool:
+    self.running = True
+    return True
+
+def _gmm_stop(self) -> bool:
+    self.running = False
+    return True
+
+def _gmm_handle_message(self, message):
+    event = message.get("type") or message.get("message_type") or ""
+    if event.startswith("graph.") and self.nexus_core is not None and hasattr(self.nexus_core, "publish_event"):
+        self.nexus_core.publish_event(event, message.get("content") or {}, source=message.get("source"))
+
+for _name, _fn in (("start", _gmm_start), ("stop", _gmm_stop), ("handle_message", _gmm_handle_message)):
+    if not hasattr(GraphModuleManager, _name):
+        setattr(GraphModuleManager, _name, _fn)
+''')
+
+def r36_registry_status_order():
+    """ModuleRegistry.register() set the module state (and pushed it to NexusCore) BEFORE
+    registering the module in NexusCore -> "Cannot update status: Module 'graph' not found"
+    (cosmetic: the module is registered right after). The core is only updated once it
+    knows the module."""
+    replace_once("grandnexus/core/registry.py",
+                 '''            if hasattr(self.core, "update_module_status") and callable(self.core.update_module_status):''',
+                 '''            if (hasattr(self.core, "update_module_status") and callable(self.core.update_module_status)
+                    and name in getattr(self.core, "modules", {})):  # repair 6.6.3: core not told yet''')
+
+def r38_conjunctive_rules():
+    """temoin_neuf_1 diagnosis: transitive relations (X taller than Y, Y taller than Z) need
+    rules with several conditions; the deduction only knew one-condition rules. Rules whose
+    "if" is a LIST of atoms now fire when all conditions are known, and their conclusions are
+    propagated through the one-condition rules, until a fixpoint. Contrapositives are only
+    built for one-condition rules (the contrapositive of A and B => C is not a single rule)."""
+    p = "grandnexus/cognition/reasoning/reasoning_core.py"
+    replace_once(p, '''        _seen_rules = {(r.get("if"), r.get("then")) for r in rules if isinstance(r, dict)}''',
+                 '''        _seen_rules = {(tuple(r["if"]) if isinstance(r.get("if"), list) else r.get("if"), r.get("then"))
+                       for r in rules if isinstance(r, dict)}  # repair 6.7: list conditions are unhashable''')
+    replace_once(p, '''            if isinstance(_r, dict) and "if" in _r and "then" in _r and not _r.get("contrapositive"):''',
+                 '''            if (isinstance(_r, dict) and isinstance(_r.get("if"), str) and isinstance(_r.get("then"), str)
+                    and not _r.get("contrapositive")):''')
+    replace_once(p, '''        conclusions.extend(new_conclusions)
+''', '''        # repair 6.7: conjunctive rules ("if" is a list): fire when every condition is known,
+        # then propagate through one-condition rules, until nothing new appears
+        _conj = [r for r in rules if isinstance(r, dict) and isinstance(r.get("if"), list) and r.get("then")]
+        _changed = bool(_conj)
+        while _changed and len(_known) < 5000:
+            _changed = False
+            for _r in _conj:
+                if _r["then"] in _known or not all(c in _known for c in _r["if"]):
+                    continue
+                _stack = [{"id": str(uuid.uuid4()), "statement": _r["then"],
+                           "confidence": _r.get("confidence", 0.95),
+                           "derived_from": {"rule": _r, "premises": list(_r["if"])}}]
+                _known.add(_r["then"])
+                _changed = True
+                while _stack:
+                    _c = _stack.pop()
+                    new_conclusions.append(_c)
+                    supporting_evidence[_c["id"]] = [f"Derived: {_c['statement']}"]
+                    for _r2 in rules:
+                        if (isinstance(_r2, dict) and isinstance(_r2.get("if"), str)
+                                and _r2["if"] == _c["statement"] and _r2.get("then") not in _known):
+                            _known.add(_r2["then"])
+                            _stack.append({"id": str(uuid.uuid4()), "statement": _r2["then"],
+                                           "confidence": min(_c["confidence"], _r2.get("confidence", 0.95)),
+                                           "derived_from": {"rule": _r2, "prior_conclusion": _c}})
+
+        conclusions.extend(new_conclusions)
+''')
+
+def r39_numbered_list_regex():
+    """Original ReasoningCore code: line.startswith('\\d+\\. ') looked for the literal characters
+    backslash-d-plus, so numbered lists ("1. ...") were never recognised (and Python 3.12 warns
+    about the invalid escape). Replaced by a real regular expression."""
+    p = "grandnexus/cognition/reasoning/reasoning_core.py"
+    replace_once(p, "                    elif line.startswith('\\d+\\. '):",
+                 "                    elif re.match(r'\\d+\\.\\s', line):  # repair 6.8: was a literal string")
+
 if __name__ == "__main__":
     globals()[sys.argv[1]]()
     print("ok", sys.argv[1])

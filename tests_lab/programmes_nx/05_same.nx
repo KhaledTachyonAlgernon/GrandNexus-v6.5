@@ -1,0 +1,1 @@
+tall(ana). same(ana, anna). ? tall(anna).

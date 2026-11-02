@@ -19,7 +19,7 @@ import itertools
 import logging
 import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from grandnexus.cognition.contracts import (
     CognitiveContext, CognitiveMode, CognitiveModuleBase, CognitiveProcessType,
@@ -27,10 +27,11 @@ from grandnexus.cognition.contracts import (
 )
 from grandnexus.cognition.perception.premise_extractor import PremiseExtractor
 
-ATOM = re.compile(r"^(not )?([^\W\d]\w*)\((\w+)(?:,(\w+))?\)$", re.UNICODE)
+ATOM = re.compile(r"^(not )?([^\W\d]\w*)\((\w+(?:,\w+){0,2})\)$", re.UNICODE)   # 1 to 3 arguments
 VARIABLE = re.compile(r"^[XYZ]$")
 QUANTITY_QUESTION = re.compile(r"\b(combien|how many|how much|quel(?:le)? est le nombre|what is the number)\b", re.I)
 DECIDED = ("oui", "non", "contradictoire")
+TYPICAL = re.compile(r"^(?:typical|generic|average|typique|generique|générique)_(\w+)$|^(\w+)_(?:typique|typical|generique|générique)$")
 
 
 def _negate(p: str) -> str:
@@ -39,7 +40,51 @@ def _negate(p: str) -> str:
 
 def _args(atom: str) -> List[str]:
     m = ATOM.match(atom.strip())
-    return [a for a in (m.group(3), m.group(4)) if a] if m else []
+    return m.group(3).split(",") if m else []
+
+
+
+def _rename(atom: str, mapping: Dict[str, str]) -> str:
+    m = ATOM.match(atom.strip()) if isinstance(atom, str) else None
+    if not m:
+        return atom
+    args = [mapping.get(a, a) for a in m.group(3).split(",")]
+    return f"{m.group(1) or ''}{m.group(2)}({','.join(args)})"
+
+
+def _alias_map(pair_atoms: List[str], constants: List[str], goals: List[str]) -> Dict[str, str]:
+    """Co-reference: same(a,b) atoms + the typical-member convention (typical_x == x).
+    Canonical name: the constant used in a goal if any, else the shortest."""
+    pairs = []
+    for a in pair_atoms:
+        m = ATOM.match(a.strip())
+        if m and not m.group(1) and m.group(2) == "same" and len(m.group(3).split(",")) == 2:
+            pairs.append(tuple(m.group(3).split(",")))
+    cs = set(constants)
+    for c in constants:
+        t = TYPICAL.match(c)
+        base = t and (t.group(1) or t.group(2))
+        if base and base in cs:
+            pairs.append((c, base))
+    parent: Dict[str, str] = {}
+
+    def find(x):
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+    for a, b in pairs:
+        parent[find(a)] = find(b)
+    in_goal = {x for g in goals for x in _args(g)}
+    groups: Dict[str, List[str]] = {}
+    for x in list(parent):
+        groups.setdefault(find(x), []).append(x)
+    mapping = {}
+    for members in groups.values():
+        canon = sorted(members, key=lambda x: (x not in in_goal, len(x), x))[0]
+        mapping.update({x: canon for x in members if x != canon})
+    return mapping
 
 
 class TextReasoner(CognitiveModuleBase):
@@ -113,44 +158,57 @@ class TextReasoner(CognitiveModuleBase):
 
     def _from_grammar(self, text: str) -> Dict[str, Any]:
         ex = self.extractor.extract(text)
-        return {"parser": "grammar", "facts": list(ex.facts), "rules": list(ex.rules), "goals": list(ex.goals),
+        return {"text": text, "parser": "grammar", "facts": list(ex.facts), "rules": list(ex.rules), "goals": list(ex.goals),
                 "knowledge_facts": [], "knowledge_rules": [], "trace": list(ex.trace),
                 "unparsed": list(ex.unparsed), "llm": None}
 
     def _from_llm(self, text: str) -> Dict[str, Any]:
         p = self.translator.to_premises(text)
-        trace = ([f"fact     | {f}" for f in p["facts"]] + [f"rule     | {r['if']} => {r['then']}" for r in p["rules"]]
+        def cond(r):
+            return " ∧ ".join(r["if"]) if isinstance(r["if"], list) else r["if"]
+        trace = ([f"fact     | {f}" for f in p["facts"]] + [f"rule     | {cond(r)} => {r['then']}" for r in p["rules"]]
                  + [f"goal     | {g}" for g in p["goals"]] + [f"knowledge| {k}" for k in p["knowledge_facts"]]
-                 + [f"knowledge| {r['if']} => {r['then']}" for r in p["knowledge_rules"]])
+                 + [f"knowledge| {cond(r)} => {r['then']}" for r in p["knowledge_rules"]]
+                 + (["repaired | one corrective round was used"] if p.get("repaired") else []))
         use_k = getattr(self.translator, "use_knowledge", True)
-        return {"parser": "llm", "facts": p["facts"], "rules": p["rules"], "goals": p["goals"],
+        return {"text": text, "parser": "llm", "facts": p["facts"], "rules": p["rules"], "goals": p["goals"],
                 "knowledge_facts": p["knowledge_facts"] if use_k else [],
                 "knowledge_rules": p["knowledge_rules"] if use_k else [], "trace": trace,
                 "unparsed": [f"rejected: {r['reason']}" for r in p["rejected"]]
                             + ([] if p["ok"] else ["LLM output unusable"]),
-                "llm": {"rejected": p["rejected"], "ok": p["ok"]}}
+                "llm": {"rejected": p["rejected"], "ok": p["ok"], "raw": (p.get("raw") or "")[:3000]}}
 
     # -- grounding ------------------------------------------------------------
     @staticmethod
     def _ground(rules: List[Dict[str, Any]], constants: List[str]) -> List[Dict[str, Any]]:
+        """Instantiate the variables X, Y, Z of every rule on the known constants.
+        A rule condition may be one atom or a list of atoms (all required)."""
         out, seen = [], set()
+
+        def key(r):
+            return (tuple(r["if"]) if isinstance(r["if"], list) else r["if"], r["then"])
         for r in rules:
-            variables = sorted({a for atom in (r["if"], r["then"]) for a in _args(atom) if VARIABLE.match(a)})
+            conds = r["if"] if isinstance(r["if"], list) else [r["if"]]
+            variables = sorted({a for atom in conds + [r["then"]] for a in _args(atom) if VARIABLE.match(a)})
             if not variables:
-                if (r["if"], r["then"]) not in seen:
-                    seen.add((r["if"], r["then"]))
+                if key(r) not in seen:
+                    seen.add(key(r))
                     out.append(r)
                 continue
-            for combo in itertools.product(constants[:40], repeat=len(variables)):
+            pool = constants[:40] if len(variables) <= 2 else constants[:15]
+            for combo in itertools.product(pool, repeat=len(variables)):
                 sub = dict(zip(variables, combo))
 
                 def apply(atom: str) -> str:
                     m = ATOM.match(atom.strip())
-                    args = [sub.get(a, a) for a in (m.group(3), m.group(4)) if a]
+                    args = [sub.get(a, a) for a in m.group(3).split(",")]
                     return f"{m.group(1) or ''}{m.group(2)}({','.join(args)})"
-                g = {**r, "if": apply(r["if"]), "then": apply(r["then"])}
-                if (g["if"], g["then"]) not in seen:
-                    seen.add((g["if"], g["then"]))
+                g_if = [apply(c) for c in conds]
+                if len(g_if) > 1 and len(set(g_if)) < len(g_if):
+                    continue                     # degenerate grounding (same condition twice)
+                g = {**r, "if": g_if[0] if len(g_if) == 1 else g_if, "then": apply(r["then"])}
+                if key(g) not in seen:
+                    seen.add(key(g))
                     out.append(g)
         return out
 
@@ -195,42 +253,81 @@ class TextReasoner(CognitiveModuleBase):
                                             + [known["not " + c] for c in contradictions[:3]],
                                  "contradictions": contradictions})
                 continue
+            # convention (aligned with the reference engine nexus_logic): "oui" means the asked
+            # literal holds, even when it is negative ("is it true that the lamp is not on?" -> oui)
             pos, neg = g in known, _negate(g) in known
             if pos:
-                v, conf = ("oui" if not g.startswith("not ") else "non"), known[g]["confidence"]
+                v, conf = "oui", known[g]["confidence"]
             elif neg:
-                v, conf = ("non" if not g.startswith("not ") else "oui"), known[_negate(g)]["confidence"]
+                v, conf = "non", known[_negate(g)]["confidence"]
             else:
                 v, conf = "inconnu", 0.0
             verdicts.append({"goal": g, "answer": v, "confidence": conf,
                              "support": [known[x] for x in (g, _negate(g)) if x in known]})
         return verdicts
 
+    @staticmethod
+    def _apply_aliases(b: Dict[str, Any], use_knowledge: bool) -> Tuple[Dict[str, Any], Dict[str, str]]:
+        """Merge constants that denote the same entity (same(a,b) and typical_x == x)."""
+        def conds(r):
+            return r["if"] if isinstance(r["if"], list) else [r["if"]]
+        atoms = b["facts"] + b["goals"] + [a for r in b["rules"] for a in conds(r) + [r["then"]]]
+        if use_knowledge:
+            atoms += b["knowledge_facts"] + [a for r in b["knowledge_rules"] for a in conds(r) + [r["then"]]]
+        constants = list(dict.fromkeys(x for a in atoms for x in _args(a) if not VARIABLE.match(x)))
+        pair_atoms = b["facts"] + (b["knowledge_facts"] if use_knowledge else [])
+        mapping = _alias_map(pair_atoms, constants, b["goals"])
+
+        def rule(r):
+            c = [_rename(a, mapping) for a in conds(r)]
+            return {**r, "if": c[0] if len(c) == 1 else c, "then": _rename(r["then"], mapping)}
+        not_same = lambda a: not a.startswith("same(")
+        nb = {**b, "facts": [_rename(a, mapping) for a in b["facts"] if not_same(a)],
+              "goals": [_rename(a, mapping) for a in b["goals"]],
+              "rules": [rule(r) for r in b["rules"]],
+              "knowledge_facts": [_rename(a, mapping) for a in b["knowledge_facts"] if not_same(a)],
+              "knowledge_rules": [rule(r) for r in b["knowledge_rules"]]}
+        return nb, mapping
+
     def _decide(self, b: Dict[str, Any], max_steps: int, perception: Any, t0: float) -> Dict[str, Any]:
-        facts = list(dict.fromkeys(b["facts"]))
-        goals = list(dict.fromkeys(b["goals"]))
+        b_strict, map_s = self._apply_aliases(b, use_knowledge=False)
+        b_full, map_k = self._apply_aliases(b, use_knowledge=True)
+        b = {**b_full, "trace": list(b["trace"]) + [f"alias    | {k} -> {v}" for k, v in map_k.items()]}
+        facts = list(dict.fromkeys(b_strict["facts"]))
+        goals = list(dict.fromkeys(b_strict["goals"]))
         # a question about a category reasons on a typical member ("Do whales breathe air?")
         categories = {_args(r["if"])[1] for r in b["rules"] + b["knowledge_rules"]
-                      if r["if"].startswith("is(") and len(_args(r["if"])) == 2 and VARIABLE.match(_args(r["if"])[0])}
+                      if isinstance(r["if"], str) and r["if"].startswith("is(") and len(_args(r["if"])) == 2
+                      and VARIABLE.match(_args(r["if"])[0])}
         for g in goals:
             a = _args(g)
             if a and a[0] in categories and not any(_args(f)[:1] == [a[0]] for f in facts):
                 facts.append(f"is({a[0]},{a[0]})")
         constants = list(dict.fromkeys(a for atom in facts + goals + b["knowledge_facts"] for a in _args(atom)
                                        if not VARIABLE.match(a)))
-        strict_rules = self._ground(b["rules"], constants) + self._containment_axioms(facts)
+        strict_rules = self._ground(b_strict["rules"], constants) + self._containment_axioms(facts)
         known_s, reasoning = self._deduce(facts, strict_rules, max_steps)
         strict = self._verdicts(known_s, goals)
-        has_k = bool(b["knowledge_facts"] or b["knowledge_rules"])
+        has_k = bool(b["knowledge_facts"] or b["knowledge_rules"] or map_k != map_s)
         if has_k:
-            facts_k = facts + [f for f in b["knowledge_facts"] if f not in facts]
+            goals = list(dict.fromkeys(b["goals"]))
+            facts_k = list(dict.fromkeys(b["facts"] + [f for f in b["knowledge_facts"] if f not in b["facts"]]))
+            for g in goals:                                   # typical member, after knowledge aliases
+                a = _args(g)
+                if a and a[0] in categories and not any(_args(f)[:1] == [a[0]] for f in facts_k):
+                    facts_k.append(f"is({a[0]},{a[0]})")
+            constants = list(dict.fromkeys(constants + [x for atom in facts_k + goals for x in _args(atom)
+                                                        if not VARIABLE.match(x)]))
             rules_k = self._ground(b["rules"] + b["knowledge_rules"], constants) + self._containment_axioms(facts_k)
             known, reasoning = self._deduce(facts_k, rules_k, max_steps)
             verdicts = self._verdicts(known, goals)
         else:
             known, verdicts = known_s, strict
         derived = [k for k, v in known.items() if v.get("from") != "premise"]
-        answer = verdicts[0]["answer"] if verdicts else ("faits enregistrés" if facts else "inconnu")
+        asked = "?" in str(b.get("text", ""))
+        if not verdicts and asked:
+            b["unparsed"] = list(b["unparsed"]) + ["question present but no goal could be formalised"]
+        answer = verdicts[0]["answer"] if verdicts else ("faits enregistrés" if facts and not asked else "inconnu")
         out = self._result(answer, verdicts, verdicts[0]["confidence"] if verdicts else 0.0,
                            {"facts": facts, "rules": [(r["if"], r["then"]) for r in strict_rules],
                             "goals": goals, "unparsed": b["unparsed"], "trace": b["trace"]},
@@ -277,9 +374,10 @@ class TextReasoner(CognitiveModuleBase):
     def _write_back(self, text: str, facts: List[str], out: Dict[str, Any]) -> None:
         for st in list(facts) + [d for d in out.get("derived", []) if d]:
             m = ATOM.match(st.strip())
-            if not m or not m.group(4):
-                continue
-            neg, pred, a, b = m.group(1), m.group(2), m.group(3), m.group(4)
+            if not m or len(m.group(3).split(",")) != 2:
+                continue                                   # the graph stores binary relations only
+            neg, pred = m.group(1), m.group(2)
+            a, b = m.group(3).split(",")
             try:
                 na, nb = self._node(a), self._node(b)
                 if na and nb:

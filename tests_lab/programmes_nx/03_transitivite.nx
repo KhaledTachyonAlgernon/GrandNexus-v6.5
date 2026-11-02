@@ -1,0 +1,1 @@
+older(a,b). older(b,c). older(X,Y) & older(Y,Z) => older(X,Z). ? older(a,c).

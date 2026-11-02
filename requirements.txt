@@ -1,0 +1,6 @@
+# Core runtime (most are preinstalled on Colab)
+numpy
+networkx
+sympy
+psutil
+anthropic          # LLM translator (Claude); optional: without a key GrandNexus runs in grammar mode

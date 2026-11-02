@@ -1,0 +1,1 @@
+bird(tweety). not fly(tweety). bird(X) & not fly(X) => penguin(X). ? penguin(tweety).

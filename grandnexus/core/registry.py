@@ -679,7 +679,8 @@ class ModuleRegistry:
                              f"{'(reason: ' + error_reason + ')' if error_reason else ''}")
 
             # Attempt to update the core's view as well
-            if hasattr(self.core, "update_module_status") and callable(self.core.update_module_status):
+            if (hasattr(self.core, "update_module_status") and callable(self.core.update_module_status)
+                    and name in getattr(self.core, "modules", {})):  # repair 6.6.3: core not told yet
                 try:
                     self.core.update_module_status(name, state)
                 except Exception as e:

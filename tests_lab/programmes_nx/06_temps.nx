@@ -1,0 +1,1 @@
+on(lamp,t1). off(lamp,t2). * off(X,T) => not on(X,T). ? on(lamp,t2).
