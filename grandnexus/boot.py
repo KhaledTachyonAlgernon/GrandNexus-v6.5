@@ -40,6 +40,7 @@ class GrandNexusSystem:
     resource_manager: Any = None
     llm_engine: Any = None
     translator: Any = None
+    nx_translator: Any = None
     report: List[BootStep] = field(default_factory=list)
 
     def ok(self) -> bool:
@@ -239,7 +240,11 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
                 raise RuntimeError("LLMEngine.initialize() a échoué (voir logs)")
             gn.llm_engine = engine
             gn.translator = LLMTranslator(llm_engine=engine, model=llm_model, nexus_core=gn.core)
-            return f"{llm_model} (clé : {why})"
+            # v7.0: the nexus_logic translator (text -> program) is the main pathway; the JSON one stays for comparison
+            from grandnexus.llm_interface.translator_v5 import Translator as NxTranslator
+            import anthropic
+            gn.nx_translator = NxTranslator(client=anthropic.Anthropic(api_key=key), model=llm_model)
+            return f"{llm_model} (clé : {why}) | voie principale : nexus_logic"
         _step(gn, "LLM traducteur (Anthropic)", _llm, verbose)
 
         def _pathways():
@@ -254,7 +259,8 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
                                               perception_core=mods.get("perception_core"),
                                               extractor=extractor, graph_engine=gn.graph,
                                               working_memory=gn.working, nexus_core=gn.core,
-                                              translator=gn.translator, mode=reasoner_mode),
+                                              translator=gn.translator, mode=reasoner_mode,
+                                              nx_translator=gn.nx_translator),
             }
             if gn.translator is not None:
                 gn.cognition.extra_modules["llm_translator"] = gn.translator

@@ -1,11 +1,11 @@
-# GrandNexus v6.10.1-rc
+# GrandNexus v7.1.0-rc
 
 Modular cognitive architecture (Python). This archive is a complete, self-contained snapshot:
 no notebook chain, no `%%writefile`, no update to graft.
 
 ## Quick start (Colab or any Python 3.10+)
 ```bash
-unzip GrandNexus_v6.10.1-rc_disjonction_complet.zip -d /content      # -> /content/GrandNexus
+unzip GrandNexus_v7.1.0-rc_complet.zip -d /content      # -> /content/GrandNexus
 pip install -q -r /content/GrandNexus/requirements.txt
 ```
 ```python
@@ -25,10 +25,11 @@ Modes: laboratory (default, deterministic, nothing runs in the background) or li
 | `grandnexus/` | the package (core, memories, cognition, graph, LLM interface, 15/05 layer) |
 | `grandnexus/boot.py` | assembles and wires the whole system |
 | `grandnexus/cognition/reasoning/text_reasoner.py` | text -> premises -> deduction -> verdict |
-| `grandnexus/llm_interface/llm_translator.py` | Claude as an anchored translator (prompt versions v1-v4) |
+| `grandnexus/llm_interface/llm_translator.py` | Claude as an anchored translator (prompt versions v1-v5.4) |
 | `tools/banc_de_test_v2.py` | test bench: freezes a test set, measures 4 modes, never prints item texts |
 | `tools/smoke_test.py`, `tools/lab_*.py` | import test, labs (controls, layer oracles) |
 | `tests_lab/test_*.py` | offline tests (no API) |
+| `GrandNexus_banc_v7_1.ipynb` | FOLIO benchmark notebook for the v7.1.0-rc train split |
 | `CARNET_DE_BORD.md` | logbook: every hypothesis -> result -> decision |
 | `archive/` | original 15/05 and 29/05 sources (untouched) |
 | `.git` | full history: every repair is one commit (`git log --oneline`) |

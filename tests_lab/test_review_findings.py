@@ -1,5 +1,5 @@
 """Findings of the external code review (Fable 5.1, 2026-10-25), reproduced offline.
-On v6.8.1 every line shows the FLAW; after the v6.9.0 repairs each must flip."""
+On v6.8.1 every line showed the FLAW; on v7.0 each must read: 1a inconnu+rejet, 1b inconnu, 2.4 oui, 2.5 rejeté, 2.3 oui, 2.2 oui."""
 import json, logging, sys
 logging.disable(logging.CRITICAL)
 sys.path.insert(0, ".")

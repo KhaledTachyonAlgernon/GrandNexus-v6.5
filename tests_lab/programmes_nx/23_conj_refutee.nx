@@ -1,0 +1,1 @@
+bo(V) => le(V). co(V) => bo(V). pc(V) => co(V). le(V) => cul(V). le(V) => lo(V). cul(h) => not pc(h). ? lo(h) & pc(h).
