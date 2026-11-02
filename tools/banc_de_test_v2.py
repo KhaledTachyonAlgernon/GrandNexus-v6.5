@@ -53,11 +53,11 @@ def charge(empreinte):
 
 def repondre(text, mode):
     o = tr.answer(text, mode=mode, write_back=False)
-    defaut = (o['answer'] == 'inconnu' and '?' in text and not o['extraction']['goals']
+    defaut = (o['answer'] == 'inconnu' and '?' in text and not o['extraction']['goals'] and mode != 'nx'
               and mode not in ('llm_direct',) and o.get('parser') != 'llm-equation')
     return str(o['answer']), defaut
 
-def mesure_temoin(items, nom, runs=3, modes=('grammar', 'llm', 'hybrid', 'llm_direct')):
+def mesure_temoin(items, nom, runs=3, modes=('grammar', 'nx', 'llm', 'llm_direct')):
     """Fige (sans jamais écraser), mesure, sauvegarde. '∅' = « inconnu » sans question formalisée (bon par défaut, pas compris)."""
     labels = ['oui', 'non', 'inconnu', 'contradictoire']
     os.makedirs(os.path.join(WORK, 'tests_lab', 'resultats'), exist_ok=True)

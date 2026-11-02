@@ -11,10 +11,11 @@ def run(text, reply, label, expected):
     global ok
     tl = LLMTranslator(call=lambda s, p: json.dumps(reply), repair_rounds=0)
     o = TextReasoner(reasoning_core=rc, translator=tl, mode="llm").answer(text, write_back=False)
-    good = o["answer"] == expected
+    got = o["answer"] if o["answer"] != "inconnu" else o.get("answer_with_knowledge", o["answer"])  # v7.0: starred answer apart
+    good = got == expected
     ok &= good
     alias = [t for t in o["extraction"]["trace"] if t.startswith("alias")]
-    print(("✓ " if good else "✗ ") + f"{label:50} -> {o['answer']:10} (texte seul : {o['strict_answer']}) {alias}")
+    print(("✓ " if good else "✗ ") + f"{label:50} -> {got:10} (texte seul : {o['strict_answer']}) {alias}")
 T = "A typical nurse works at night. Working at night requires coffee. Do nurses need coffee?"
 F = [{"p": "work(typical_nurse,night)", "quote": "A typical nurse works at night"}]
 R = [{"if": "work(X,night)", "then": "need(X,coffee)", "quote": "Working at night requires coffee"}]

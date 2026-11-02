@@ -92,7 +92,11 @@ class TextReasoner(CognitiveModuleBase):
     def __init__(self, reasoning_core: Any = None, perception_core: Any = None,
                  extractor: Optional[PremiseExtractor] = None, graph_engine: Any = None,
                  working_memory: Any = None, nexus_core: Any = None, translator: Any = None,
-                 mode: Optional[str] = None, **kwargs):
+                 mode: Optional[str] = None, nx_translator: Any = None, engine: str = "reference", **kwargs):
+        """engine: "reference" (nexus_logic, v7.0 default) or "home" (ReasoningCore, kept for comparison).
+        nx_translator: a translator_v5.Translator (text -> nexus_logic program); enables mode "nx"."""
+        self.engine = engine
+        self.nx_translator = nx_translator
         self.reasoning_core = reasoning_core
         self.perception_core = perception_core
         self.extractor = extractor or PremiseExtractor(nexus_core=nexus_core)
@@ -100,7 +104,7 @@ class TextReasoner(CognitiveModuleBase):
         self.working_memory = working_memory
         self.nexus_core = nexus_core
         self.translator = translator
-        self.mode = mode or ("hybrid" if translator is not None else "grammar")
+        self.mode = mode or ("nx" if nx_translator is not None else "hybrid" if translator is not None else "grammar")
         self.logger = logging.getLogger("GrandNexus.TextReasoner")
         self._node_ids: Dict[str, str] = {}
 
@@ -108,10 +112,18 @@ class TextReasoner(CognitiveModuleBase):
     def answer(self, text: str, max_steps: int = 8, write_back: bool = True,
                mode: Optional[str] = None) -> Dict[str, Any]:
         mode = mode or self.mode
-        if self.translator is None and mode != "grammar":
+        if mode == "nx" and self.nx_translator is None:
+            mode = "hybrid" if self.translator is not None else "grammar"
+        if self.translator is None and mode not in ("grammar", "nx"):
             mode = "grammar"
         t0 = time.time()
         perception = self._perceive(text)
+
+        if mode == "nx":
+            out = self._answer_nx(text, perception, t0)
+            if write_back:
+                self._write_back(text, out["extraction"]["facts"], out)
+            return out
 
         if mode == "llm_direct":
             ans = self.translator.answer_directly(text)
@@ -147,6 +159,51 @@ class TextReasoner(CognitiveModuleBase):
         return out
 
     # =========================================================================
+    @staticmethod
+    def _split_question(text: str):
+        """Last sentence ending with '?' is the question; the rest is the text."""
+        parts = re.split(r"(?<=[.!?])\s+", text.strip())
+        qs = [p for p in parts if p.rstrip().endswith("?")]
+        if not qs:
+            return text.strip(), ""
+        q = qs[-1]
+        body = " ".join(p for p in parts if p is not q)
+        return body.strip(), q.strip()
+
+    def _answer_nx(self, text: str, perception: Any, t0: float) -> Dict[str, Any]:
+        """v7.0 core pathway: Claude translates into the nexus_logic language, the reference engine decides.
+        Policy: the answer is the STRICT verdict (text only); a verdict that needs background knowledge is
+        reported apart, starred, never counted as the answer."""
+        body, query = self._split_question(text)
+        r = self.nx_translator.answer(body, query)
+        strict, full = r["verdict_strict"], r["verdict"]
+        answer = r["answer_strict"] if strict == "oui" else strict      # numbers for "how many" questions
+        out = self._result(answer, [{"goal": query, "answer": answer, "confidence": 0.95 if strict in DECIDED else 0.0,
+                                     "support": [{"statement": l, "from": "proof"} for l in r["proof"][:12]]}],
+                           0.95 if strict in DECIDED else 0.0,
+                           {"facts": [], "rules": [], "goals": [query] if query else [],
+                            "unparsed": r["rejections"], "trace": ["nx | " + l for l in r["program"].splitlines() if l.strip()]},
+                           [], ["nexus_logic:" + r["engine_version"]], "nx", perception, t0)
+        out["strict_answer"] = strict
+        out["answer_with_knowledge"] = r["answer"] if full == "oui" else full
+        out["depends_on_knowledge"] = bool(r["depends_on_knowledge"]) and full != strict
+        out["program"] = r["program"]
+        out["receipts"] = {"calls": r["calls"], "message_ids": r["message_ids"], "model": r["model"]}
+        return out
+
+    def _deduce_reference(self, facts: List[str], rules: List[Dict[str, Any]], goals: List[str],
+                          knowledge_facts: List[str] = (), knowledge_rules: List[Dict[str, Any]] = ()):
+        """Deduction by the reference engine (v7.0): returns (verdicts, derived, reasoning_info)."""
+        from grandnexus.nexus_logic import program_from_atoms, decide
+        prog = program_from_atoms(facts, rules, goals, knowledge_facts, knowledge_rules)
+        v = decide(prog, use_knowledge=bool(knowledge_facts or knowledge_rules))
+        conf = 0.95 if v.answer in DECIDED else 0.0
+        verdicts = [{"goal": g, "answer": v.answer, "confidence": conf,
+                     "support": [{"statement": l.strip(), "from": "proof"} for l in v.proof[:12]],
+                     "contradictions": v.contradictions} for g in goals[:1]]
+        derived = [re.sub(r"\s+\[.*$", "", l).strip().replace(", ", ",") for l in v.proof if "[s" in l and "=>" in l]
+        return verdicts, derived, {"strategies_used": ["nexus_logic"], "note": v.note}
+
     def _perceive(self, text: str) -> Optional[Dict[str, Any]]:
         if self.perception_core is None:
             return None
@@ -301,20 +358,43 @@ class TextReasoner(CognitiveModuleBase):
                       and VARIABLE.match(_args(r["if"])[0])}
         for g in goals:
             a = _args(g)
-            if a and a[0] in categories and not any(_args(f)[:1] == [a[0]] for f in facts):
+            if a and a[0] in categories and f"is({a[0]},{a[0]})" not in facts:     # no guard (review 2.4)
                 facts.append(f"is({a[0]},{a[0]})")
         constants = list(dict.fromkeys(a for atom in facts + goals + b["knowledge_facts"] for a in _args(atom)
                                        if not VARIABLE.match(a)))
+        has_k = bool(b["knowledge_facts"] or b["knowledge_rules"] or map_k != map_s)
+        if self.engine == "reference":
+            # v7.0: variables are native, so no grounding; containment transitivity stays a ground axiom set
+            strict_rules = list(b_strict["rules"]) + self._containment_axioms(facts)
+            strict, derived_s, reasoning = self._deduce_reference(facts, strict_rules, goals)
+            if has_k:
+                goals_k = list(dict.fromkeys(b["goals"]))
+                facts_k = list(dict.fromkeys(b["facts"] + [f for f in b["knowledge_facts"] if f not in b["facts"]]))
+                verdicts, derived, reasoning = self._deduce_reference(
+                    facts_k, list(b["rules"]) + self._containment_axioms(facts_k), goals_k, [], b["knowledge_rules"])
+            else:
+                verdicts, derived = strict, derived_s
+            # policy (v7.0): the answer is the strict verdict; the knowledge-based one is reported apart
+            answer = strict[0]["answer"] if strict else ("inconnu" if "?" in str(b.get("text", "")) else ("faits enregistrés" if facts else "inconnu"))
+            out = self._result(answer, strict, strict[0]["confidence"] if strict else 0.0,
+                               {"facts": facts, "rules": [(r["if"], r["then"]) for r in strict_rules],
+                                "goals": goals, "unparsed": b["unparsed"], "trace": b["trace"]},
+                               derived_s, reasoning.get("strategies_used", []), b["parser"], perception, t0)
+            out["strict_answer"] = strict[0]["answer"] if strict else None
+            out["answer_with_knowledge"] = verdicts[0]["answer"] if (has_k and verdicts) else out["strict_answer"]
+            out["depends_on_knowledge"] = bool(has_k and strict and verdicts and strict[0]["answer"] != verdicts[0]["answer"])
+            if b.get("llm") is not None:
+                out["llm"] = b["llm"]
+            return out
         strict_rules = self._ground(b_strict["rules"], constants) + self._containment_axioms(facts)
         known_s, reasoning = self._deduce(facts, strict_rules, max_steps)
         strict = self._verdicts(known_s, goals)
-        has_k = bool(b["knowledge_facts"] or b["knowledge_rules"] or map_k != map_s)
         if has_k:
             goals = list(dict.fromkeys(b["goals"]))
             facts_k = list(dict.fromkeys(b["facts"] + [f for f in b["knowledge_facts"] if f not in b["facts"]]))
             for g in goals:                                   # typical member, after knowledge aliases
                 a = _args(g)
-                if a and a[0] in categories and not any(_args(f)[:1] == [a[0]] for f in facts_k):
+                if a and a[0] in categories and f"is({a[0]},{a[0]})" not in facts_k:
                     facts_k.append(f"is({a[0]},{a[0]})")
             constants = list(dict.fromkeys(constants + [x for atom in facts_k + goals for x in _args(atom)
                                                         if not VARIABLE.match(x)]))

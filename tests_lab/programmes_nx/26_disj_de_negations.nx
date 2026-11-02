@@ -1,0 +1,1 @@
+wl(V) => cd(V). pt(V) => wl(V). wlab(j). not wlab(j) | not pt(j). ? pt(j).

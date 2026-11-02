@@ -75,7 +75,8 @@ def metrics(rows: list[dict], key: str = "pred") -> dict:
     return {"acc": acc, "n": len(rows), "pct": round(100 * acc / n, 1),
             "false_oui": sum(g(r) == "oui" and r["expected"] != "oui" for r in rows),
             "false_non": sum(g(r) == "non" and r["expected"] != "non" for r in rows),
-            "inventions": sum(g(r) in ("oui", "non") and r["expected"] == "inconnu" for r in rows),
+            "inventions": sum(g(r) in ("oui", "non", "contradictoire") and r["expected"] == "inconnu" for r in rows),
+            "false_contradictoire": sum(g(r) == "contradictoire" and r["expected"] != "contradictoire" for r in rows),
             "inconnu": sum(g(r) == "inconnu" for r in rows),
             "contradictoire": sum(g(r) == "contradictoire" for r in rows),
             "erreurs": sum(g(r) == "erreur" for r in rows),
@@ -188,12 +189,12 @@ def main() -> None:
     for m in modes:
         for run, mt in summary["modes"][m]["runs"].items():
             print(f"{m} run {run}: {mt['acc']}/{mt['n']} = {mt['pct']}% | faux oui {mt['false_oui']} | faux non {mt['false_non']}"
-                  f" | inventions {mt['inventions']} | inconnu {mt['inconnu']} | contradictoire {mt['contradictoire']} | erreurs {mt['erreurs']}")
+                  f" | faux contradictoire {mt['false_contradictoire']} | inventions {mt['inventions']} | inconnu {mt['inconnu']} | erreurs {mt['erreurs']}")
             if "strict" in mt:
                 s = mt["strict"]
                 print(f"   strict (sans connaissance) : {s['acc']}/{s['n']} = {s['pct']}% | faux oui {s['false_oui']} | inventions {s['inventions']}"
                       f" | items dépendant d'une connaissance {mt['depends_on_knowledge']} | rejets {mt['rejections']}")
-            print(f"   K1 {'PASS' if mt['pct'] > base else 'FAIL'} (> témoin {base}%) ; K2 faux oui = {mt['false_oui']}")
+            print(f"   K1 {'PASS' if mt['pct'] > base else 'FAIL'} (> témoin {base}%) ; K2 faux oui = {mt['false_oui']}, faux non = {mt['false_non']}, faux contradictoire = {mt['false_contradictoire']}")
         if a.runs > 1 and m in API_MODES:
             print(f"   stabilité : {summary['modes'][m]['stable_items']}/{len(items)} items identiques sur {a.runs} passages")
     out = outdir / f"{name}.json"

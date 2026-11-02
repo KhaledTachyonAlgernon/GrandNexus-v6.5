@@ -1,0 +1,1 @@
+fa(V) => ga(V). ga(V) => aa(V). aa(V) => cw(V). ex(V) => not cw(V). frozen(V) => fa(V). fa(h) | aa(h). not frozen(h). ? (ex(h) & frozen(h)) | (not ex(h) & not frozen(h)).

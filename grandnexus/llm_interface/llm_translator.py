@@ -240,12 +240,9 @@ def condition_list(cond: Any) -> List[Any]:
 def anchored(quote: str, text: str, min_overlap: float = 0.8) -> bool:
     """True if `quote` is (almost) literally present in `text`."""
     q, t = _norm(quote), _norm(text)
-    if not q:
+    if len(q.split()) < 2:                 # a single word proves nothing (review 1a)
         return False
-    if q in t:
-        return True
-    qt, tt = q.split(), set(t.split())
-    return len(qt) > 0 and sum(w in tt for w in qt) / len(qt) >= min_overlap
+    return q in t                          # exact (normalised) span only: no bag-of-words fallback (review 1a)
 
 
 def extract_json(raw: str) -> Optional[Dict[str, Any]]:
@@ -378,11 +375,14 @@ class LLMTranslator(CognitiveModuleBase):
         def rule(item, conds, then, conf, src):
             return {"if": conds[0] if len(conds) == 1 else conds, "then": then, "confidence": conf, "source": src}
 
+        def ground(item, a, kind):
+            return not VAR_RE.search(a) or bad(item, kind, "variable in a fact or goal (review 2.5): use a constant or a rule")
+
         for f in parsed.get("facts", []) or []:
             if not isinstance(f, dict):
                 continue
             a = normalize_atom(f.get("p"))
-            if atom_ok(f, [a], "fact") and (anchored(str(f.get("quote", "")), text) or bad(f, "fact", "quote not found in text")):
+            if atom_ok(f, [a], "fact") and ground(f, a, "fact") and (anchored(str(f.get("quote", "")), text) or bad(f, "fact", "quote not found in text")):
                 out["facts"].append(a)
         for r in parsed.get("rules", []) or []:
             if not isinstance(r, dict):
@@ -394,14 +394,14 @@ class LLMTranslator(CognitiveModuleBase):
             if not isinstance(g, dict):
                 continue
             a = normalize_atom(g.get("p"))
-            if atom_ok(g, [a], "goal") and (anchored(str(g.get("quote", "")), text) or bad(g, "goal", "quote not found in text")):
+            if atom_ok(g, [a], "goal") and ground(g, a, "goal") and (anchored(str(g.get("quote", "")), text) or bad(g, "goal", "quote not found in text")):
                 out["goals"].append(a)
         for k in parsed.get("knowledge", []) or []:
             if not isinstance(k, dict):
                 continue
             if "p" in k:
                 a = normalize_atom(k.get("p"))
-                if atom_ok(k, [a], "knowledge"):
+                if atom_ok(k, [a], "knowledge") and ground(k, a, "knowledge"):
                     out["knowledge_facts"].append(a)
             elif "if" in k:
                 conds, then = condition_list(k.get("if")), normalize_atom(k.get("then"))
