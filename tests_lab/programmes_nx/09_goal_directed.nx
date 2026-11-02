@@ -1,0 +1,1 @@
+likes(X,Y) => happy(X). not happy(john). ? likes(john, mary).

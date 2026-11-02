@@ -1,0 +1,1 @@
+mammal(X) => not feathers(X). feathers(penguin). ? mammal(penguin).

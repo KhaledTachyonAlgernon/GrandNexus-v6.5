@@ -1,0 +1,1 @@
+kind(typical_nurse). nurse(X) => work(X,hospital). ? work(nurse,hospital).

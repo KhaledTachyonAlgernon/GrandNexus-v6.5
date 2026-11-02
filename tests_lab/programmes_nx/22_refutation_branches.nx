@@ -1,0 +1,1 @@
+a(x) | b(x). a(X) => c(X). b(X) => c(X). c(X) => not d(X). ? d(x).

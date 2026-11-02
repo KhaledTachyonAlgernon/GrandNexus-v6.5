@@ -1,0 +1,1 @@
+in(k,d). in(d,s). in(s,o). in(X,Y) & in(Y,Z) => in(X,Z). ? in(k,o).

@@ -20,9 +20,14 @@ declare -A MSG=(
  [r31_interruptible_loops]="R31 boucles de fond interruptibles (CognitiveMonitor, ErrorRecovery) : arrêt de 17 s"
  [r32_deduction_fixpoint]="R32 déduction: chaînage jusqu'à stabilité (avant: 2 pas) + contraposée"
  [r33_llm_engine_anthropic]="R33 LLMEngine Anthropic: modèle configuré et consigne système transmis (ancien défaut retiré)"
+ [r34_anthropic_sampling_and_receipts]="R34 LLMEngine: no default temperature (rejected by recent Claude models), one retry without it, API receipts"
+ [r35_graph_manager_interface]="R35 GraphModuleManager: start/stop/handle_message expected by ModuleRegistry"
+ [r36_registry_status_order]="R36 ModuleRegistry: status pushed to NexusCore only once the core knows the module"
+ [r38_conjunctive_rules]="R38 deduction: rules with several conditions (fixpoint with one-condition propagation)"
+ [r39_numbered_list_regex]="R39 ReasoningCore: numbered-list detection used a literal string instead of a regex"
  [r9_robustness]="R9 robustesse: create_anomaly_filter hors classe, annotation ast différée, replis sans PyTorch"
 )
-for r in r2_syntax r3_dataclasses r4_graph_factory r5_aliases r6_missing_classes r7_event_bus r8_cognitive_contract r9_robustness r10_flat_namespace_imports r11_logic_bugs r12_graph_registry r13_shared_graph r14_reason_workspace_contract r24_message_queue_tiebreak r25_manager_bridges r31_interruptible_loops r32_deduction_fixpoint r33_llm_engine_anthropic; do
+for r in r2_syntax r3_dataclasses r4_graph_factory r5_aliases r6_missing_classes r7_event_bus r8_cognitive_contract r9_robustness r10_flat_namespace_imports r11_logic_bugs r12_graph_registry r13_shared_graph r14_reason_workspace_contract r24_message_queue_tiebreak r25_manager_bridges r31_interruptible_loops r32_deduction_fixpoint r33_llm_engine_anthropic r34_anthropic_sampling_and_receipts r35_graph_manager_interface r36_registry_status_order r38_conjunctive_rules r39_numbered_list_regex; do
   python3 repairs.py "$r"
   (cd .. && git add -A && git commit -qm "${MSG[$r]}")
 done
