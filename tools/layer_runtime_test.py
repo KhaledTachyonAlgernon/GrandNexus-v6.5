@@ -2,7 +2,7 @@
 Test de conflit EN FONCTIONNEMENT : cœur 29/05 + orchestrateur + couche vivante du 15/05
 sur un même NexusCore démarré, pendant quelques secondes.
 Mesures : collisions de noms, messages envoyés / livrés / sans destinataire,
-erreurs journalisées par module, statut des modules, fuite de threads.
+errors journalisées par module, statut des modules, fuite de threads.
 Usage : python tools/layer_runtime_test.py [secondes]
 """
 import collections, importlib, logging, sys, threading, time, pathlib
@@ -64,20 +64,20 @@ def main(seconds=3.0):
                 continue
             instances[cls] = C(core)
         except Exception as e:
-            report.append((cls, "ÉCHEC création", f"{type(e).__name__}: {e}"))
+            report.append((cls, "FAIL création", f"{type(e).__name__}: {e}"))
 
     # 2) démarrage du cœur puis de la couche
     t0 = time.time()
     try:
         core.start()
     except Exception as e:
-        report.append(("NexusCore", "ÉCHEC start", f"{type(e).__name__}: {e}"))
+        report.append(("NexusCore", "FAIL start", f"{type(e).__name__}: {e}"))
     for cls, inst in instances.items():
         try:
             ok = inst.start()
             report.append((cls, "démarré" if ok is not False else "start()=False", ""))
         except Exception as e:
-            report.append((cls, "ÉCHEC start", f"{type(e).__name__}: {e}"))
+            report.append((cls, "FAIL start", f"{type(e).__name__}: {e}"))
     time.sleep(seconds)
 
     # 3) santé
@@ -87,19 +87,19 @@ def main(seconds=3.0):
             try:
                 h = hc(); report.append((cls, "santé", str(h)[:90]))
             except Exception as e:
-                report.append((cls, "ÉCHEC santé", f"{type(e).__name__}: {e}"))
+                report.append((cls, "FAIL santé", f"{type(e).__name__}: {e}"))
     # 4) une question pendant que tout tourne
     try:
         r = gn.orchestrator.process_input("All men are mortal. Socrates is a man. Is Socrates mortal?")
         ans = [o.get("answer") for o in (r["output"] or []) if isinstance(o, dict) and "answer" in o]
-        report.append(("Orchestrateur", "question en charge", f"réponses={ans[:2]} succès={r['success']}"))
+        report.append(("Orchestrateur", "question en charge", f"answers={ans[:2]} succès={r['success']}"))
     except Exception as e:
-        report.append(("Orchestrateur", "ÉCHEC question", f"{type(e).__name__}: {e}"))
+        report.append(("Orchestrateur", "FAIL question", f"{type(e).__name__}: {e}"))
 
     # 5) arrêt
     for cls, inst in instances.items():
         try: inst.stop()
-        except Exception as e: report.append((cls, "ÉCHEC stop", str(e)[:80]))
+        except Exception as e: report.append((cls, "FAIL stop", str(e)[:80]))
     gn.shutdown()
     time.sleep(1.0)
     elapsed = time.time() - t0

@@ -1,27 +1,33 @@
 """
-nexus_logic — langage formel, analyseur et moteur de déduction de référence (candidat pour remplacer le
-moteur de text_reasoner, ou lui servir d'oracle différentiel).
+nexus_logic - formal language, parser and reference deduction engine (the core of GrandNexus since v7.0;
+the former in-house engine is kept as a differential control).
 
-Ce que le carnet a montré : la plupart des échecs venaient (a) d'un écart entre ce que le prompt demande et
-ce que l'analyseur accepte (arité, relations, propositions, conjonctions), (b) de propriétés du moteur
-redécouvertes au cas par cas (R32 profondeur/contraposée, R37 sûreté, R38 conjonctions, same(), temps).
-Ici le langage est défini UNE fois (LANGUAGE_SPEC, montré tel quel au traducteur, appliqué tel quel par
-l'analyseur) et la sémantique du moteur est explicite, donc testable et comparable à clingo (asp.py).
+What the logbook showed: most failures came (a) from a gap between what the prompt asked and what the parser
+accepted (arity, relations, propositions, conjunctions), (b) from engine properties rediscovered case by case
+(R32 depth/contraposition, R37 safety, R38 conjunctions, same(), time). Here the language is defined ONCE
+(LANGUAGE_SPEC, shown as is to the translator, applied as is by the parser) and the engine semantics is
+explicit, hence testable and comparable to clingo (asp.py).
 
-Sémantique
-- Faits signés clos ; règles à corps conjonctif et conclusion unique ; aucun symbole de fonction
-  => base de Herbrand finie => le chaînage avant naïf termine toujours.
-- Négation classique et EXPLICITE : `not p(a)` est un littéral stocké. Un littéral négatif en condition
-  ne s'apparie qu'à un littéral négatif stocké (pas de négation par échec). Absence == inconnu.
-- Sûreté (R37) : chaque variable de la conclusion d'une règle apparaît dans une condition.
-- Contraposées (R32) ajoutées automatiquement quand elles sont sûres ; sinon réservées à un pas dirigé
-  par le but sur la question posée (likes(X,Y) => happy(X). not happy(john). ? likes(john, mary) -> non).
-- same(a, b) fusionne deux constantes (union-find) ; typical_x == x en option (convention du prompt v4).
-- let c = expr lie une constante numérique (arithmétique évaluée sans eval()).
-- Verdict : contradictoire si la clôture contient p et not p ; oui si le but est dérivé ; non si sa
-  négation l'est ; inconnu sinon. Une question avec variables renvoie les liaisons (« combien », « qui »).
-- Chaque littéral dérivé garde sa justification : preuve imprimable, énoncés utilisés, dépendance à la
-  connaissance de fond (énoncés marqués *), sans second passage.
+Semantics
+- Closed signed facts; rules with a conjunctive body and a single conclusion; no function symbol
+  => finite Herbrand base => naive forward chaining always terminates.
+- Classical and EXPLICIT negation: `not p(a)` is a stored literal. A negative literal in a condition only
+  matches a stored negative literal (no negation as failure). Absence == unknown.
+- Safety (R37): every variable of a rule's conclusion appears in a condition.
+- Contrapositives (R32) added automatically when safe; otherwise kept for a goal-directed step on the
+  question asked (likes(X,Y) => happy(X). not happy(john). ? likes(john, mary) -> no).
+- same(a, b) merges two constants (union-find); typical_x == x as an option (prompt v4 convention).
+- let c = expr binds a numeric constant (arithmetic evaluated without eval()).
+- Disjunctions (ref-2.0): ground `a | b` and disjunctive conclusions `body => a | b`, decided by case split:
+  a verdict holds only if every consistent branch gives it (entailment).
+- Questions: a literal (possibly with a variable: bindings, "how many"), a universal `? body => head`
+  (counterexample -> no, fresh-constant introduction -> yes), or any ground propositional formula,
+  decided by refutation (ref-2.2): yes if KB + not f is inconsistent, no if KB + f is.
+- Reductio ad absurdum (ref-1.1) for literal goals; universal questions (ref-1.2).
+- Verdict: contradictory if the closure contains p and not p; yes if the goal is derived; no if its
+  negation is; unknown otherwise.
+- Every derived literal keeps its justification: printable proof, statements used, dependence on
+  background knowledge (statements marked *), without a second pass.
 """
 from __future__ import annotations
 
@@ -31,8 +37,19 @@ import re
 from dataclasses import dataclass, field
 from typing import Dict, Iterator, List, Optional, Sequence, Set, Tuple, Union
 
-ENGINE_VERSION = "ref-2.2"  # 1.1: reductio ; 1.2: universal questions ; 2.0: disjunctions ; 2.2: formula questions by refutation
-MAX_ARITY = 4  # relation ternaire + moment ; le carnet a perdu un item sur une limite à 2 puis 3
+ENGINE_VERSION = "ref-2.3"  # 2.2: formula questions by refutation ; 2.3: literal questions complete w.r.t. the case split
+MAX_ARITY = 4  # ternary relation + moment; the logbook lost an item on a limit of 2, then 3 arguments
+
+# verdict tokens (English since v7.1.0; frozen test sets written with the French labels are mapped at load time)
+YES, NO, UNKNOWN, CONTRADICTORY = "yes", "no", "unknown", "contradictory"
+LABEL_ALIASES = {"oui": YES, "non": NO, "inconnu": UNKNOWN, "contradictoire": CONTRADICTORY,
+                 "true": YES, "false": NO, "uncertain": UNKNOWN, "faits enregistrés": "facts recorded"}
+
+
+def normalise_label(x) -> str:
+    """Map a French / FOLIO label to the English verdict token; numbers and unknown strings pass through."""
+    t = str(x).strip().lower()
+    return LABEL_ALIASES.get(t, t)
 
 LANGUAGE_SPEC = """\
 program   := { line }                         one statement per line; a line ends with "."
@@ -68,7 +85,7 @@ def is_var(t: Term) -> bool:
     return isinstance(t, str) and t[:1].isupper()
 
 
-# ----------------------------------------------------------------------------- termes et littéraux
+# ----------------------------------------------------------------------------- terms and literals
 @dataclass(frozen=True)
 class Atom:
     pred: str
@@ -103,7 +120,7 @@ class Rule:
     head: Lit
     sid: str
     knowledge: bool = False
-    derived: bool = False  # contraposée
+    derived: bool = False  # contrapositive
 
     def is_safe(self) -> bool:
         return self.head.vars() <= set().union(*(b.vars() for b in self.body))
@@ -133,7 +150,7 @@ def subst_lit(lit: Lit, s: Dict[str, Term]) -> Lit:
 
 
 def match(pat: Lit, ground: Lit, subst: Dict[str, Term]) -> Optional[Dict[str, Term]]:
-    """Appariement d'un motif sur un littéral clos ; renvoie la substitution étendue ou None."""
+    """Match a pattern against a ground literal; returns the extended substitution or None."""
     if pat.key != ground.key:
         return None
     s = dict(subst)
@@ -152,7 +169,7 @@ def contrapositives(r: Rule) -> List[Rule]:
             for i, c in enumerate(r.body)]
 
 
-# ----------------------------------------------------------------------------- arithmétique sûre
+# ----------------------------------------------------------------------------- safe arithmetic
 _OPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, ast.Div: operator.truediv,
         ast.FloorDiv: operator.floordiv, ast.Mod: operator.mod, ast.Pow: operator.pow}
 
@@ -162,7 +179,7 @@ def _norm_num(v: Union[int, float]) -> Union[int, float]:
 
 
 def safe_eval(expr: str, env: Dict[str, Union[int, float]]) -> Union[int, float]:
-    """Évalue + - * / // % ** et parenthèses sur des nombres et des constantes `let` ; jamais eval()."""
+    """Evaluates + - * / // % ** and parentheses over numbers and `let` constants; never eval()."""
     def ev(n: ast.AST) -> Union[int, float]:
         if isinstance(n, ast.Constant) and isinstance(n.value, (int, float)) and not isinstance(n.value, bool):
             return n.value
@@ -184,7 +201,7 @@ def safe_eval(expr: str, env: Dict[str, Union[int, float]]) -> Union[int, float]
         raise ValueError(f"bad expression: {e}") from None
 
 
-# ----------------------------------------------------------------------------- formules (questions composées)
+# ----------------------------------------------------------------------------- formulas (compound questions)
 _TOK = re.compile(r"\s*(not\b|&|\||\(|\)|[a-z][a-z0-9_]*(?:\([^()]*\))?)\s*")
 
 
@@ -307,11 +324,11 @@ class Rejection:
 
 @dataclass
 class Program:
-    facts: List[Tuple[Lit, str, bool]] = field(default_factory=list)      # (littéral, id, connaissance ?)
+    facts: List[Tuple[Lit, str, bool]] = field(default_factory=list)      # (literal, id, knowledge?)
     rules: List[Rule] = field(default_factory=list)
     sames: List[Tuple[str, str]] = field(default_factory=list)
     lets: Dict[str, Union[int, float]] = field(default_factory=dict)
-    questions: List[Tuple] = field(default_factory=list)                 # conjonction de littéraux, ou ("universal", i)
+    questions: List[Tuple] = field(default_factory=list)                 # conjunction of literals, or ("universal", i) / ("formula", f)
     universal_questions: List["Rule"] = field(default_factory=list)       # ? body => head
     disjunctions: List[Tuple[Tuple[Lit, ...], str, bool]] = field(default_factory=list)   # a | b.  (ground)
     drules: List["DRule"] = field(default_factory=list)                   # body => a | b
@@ -353,13 +370,13 @@ def parse_literal(s: str) -> Lit:
     args = tuple(parse_term(a) for a in inner.split(",")) if inner and inner.strip() else ()
     if len(args) > MAX_ARITY:
         raise ValueError(f"arity {len(args)} > {MAX_ARITY}")
-    if not args:                      # mot nu -> prop(mot)  (v6.7.0 : « bare atoms normalised »)
+    if not args:                      # bare word -> prop(word)  (v6.7.0: bare atoms normalised)
         pred, args = "prop", (pred,)
     return Lit(Atom(pred, args), neg)
 
 
 def _split_line(line: str) -> List[str]:
-    """Découpe une ligne en énoncés : '.' hors guillemets suivi d'un blanc/fin, ancre @ "..." rattachée."""
+    """Split a line into statements: '.' outside quotes followed by a blank/end, anchor @ "..." attached."""
     out, buf, inq, i, n = [], [], False, 0, len(line)
     while i < n:
         ch = line[i]
@@ -431,7 +448,7 @@ def _parse_statement(prog: Program, seg: str, lineno: int, sid: str, src: Option
                 raise ValueError("bad same (expected: same(a, b))")
             prog.sames.append((mm.group(1), mm.group(2)))
             return
-        if src is not None and not knowledge:            # ancrage : l'énoncé doit citer le texte
+        if src is not None and not knowledge:            # anchoring: the statement must quote the text
             if anchor is None:
                 if require_anchor:
                     raise ValueError('unanchored statement: quote the text span with @ "..."')
@@ -471,7 +488,7 @@ def _parse_statement(prog: Program, seg: str, lineno: int, sid: str, src: Option
 
 
 def parse(text: str, source_text: Optional[str] = None, require_anchor: bool = False) -> Program:
-    """Analyse un programme ; les énoncés refusés vont dans prog.rejections avec la raison (pour le tour correctif)."""
+    """Parse a program; rejected statements go to prog.rejections with the reason (for the corrective round)."""
     prog = Program()
     src = _norm(source_text) if source_text else None
     n = 0
@@ -503,24 +520,24 @@ class _UnionFind:
     def union(self, a: str, b: str) -> None:
         ra, rb = self.find(a), self.find(b)
         if ra != rb:
-            if (len(rb), rb) < (len(ra), ra):   # représentant = nom le plus court (lisible dans les preuves)
+            if (len(rb), rb) < (len(ra), ra):   # representative = shortest name (readable in proofs)
                 ra, rb = rb, ra
             self.parent[rb] = ra
 
 
 @dataclass
 class Verdict:
-    answer: str                                   # oui | non | inconnu | contradictoire
+    answer: str                                   # yes | no | unknown | contradictory
     bindings: List[Dict[str, Term]] = field(default_factory=list)
     proof: List[str] = field(default_factory=list)
-    used: List[str] = field(default_factory=list)  # ids des énoncés utilisés
+    used: List[str] = field(default_factory=list)  # ids of the statements used
     depends_on_knowledge: bool = False
     contradictions: List[str] = field(default_factory=list)
     note: str = ""
 
     def short(self) -> str:
-        """Réponse courte : la valeur liée pour « combien / qui », sinon le verdict."""
-        if self.answer == "oui" and self.bindings and all(len(b) == 1 for b in self.bindings):
+        """Short answer: the bound value for "how many / who", else the verdict."""
+        if self.answer == "yes" and self.bindings and all(len(b) == 1 for b in self.bindings):
             return ", ".join(sorted({str(next(iter(b.values()))) for b in self.bindings}))
         return self.answer
 
@@ -539,7 +556,7 @@ class Engine:
         self.why: Dict[Lit, Tuple[Optional[Rule], Tuple[Lit, ...], str]] = {}
         self.knowledge_sids: Set[str] = set()
         self.rules: List[Rule] = []
-        self.goal_rules: List[Rule] = []      # contraposées non sûres : un pas dirigé par le but seulement
+        self.goal_rules: List[Rule] = []      # unsafe contrapositives: goal-directed step only
         self.facts0: List[Lit] = []
         self.overflow = False
         self.rounds = 0
@@ -592,7 +609,7 @@ class Engine:
                 yield from l.atom.args
 
     def canon(self, lit: Lit) -> Lit:
-        """Substitue les constantes `let` et les représentants same()/typical_."""
+        """Substitute `let` constants and the same()/typical_ representatives."""
         def ct(t: Term) -> Term:
             if isinstance(t, str) and not is_var(t):
                 return self.prog.lets[t] if t in self.prog.lets else self.uf.find(t)
@@ -638,7 +655,7 @@ class Engine:
         self.why[lit] = (rule, prem, sid)
         return True
 
-    # --- chaînage
+    # --- chaining
     def _matches(self, body: Sequence[Lit], subst: Dict[str, Term], i: int = 0) -> Iterator[Dict[str, Term]]:
         if i == len(body):
             yield subst
@@ -707,49 +724,49 @@ class Engine:
                        used=sorted(used), depends_on_knowledge=bool(used & self.knowledge_sids),
                        note="goal-directed contrapositive (not exported to ASP)" if via_goal else "")
 
-    # --- réponse
+    # --- answer
     def answer(self, goal: Optional[Sequence[Lit]] = None) -> Verdict:
         if goal is None:
             if not self.prog.questions:
-                return Verdict("inconnu", note="no question formalised")   # jamais « faits enregistrés »
+                return Verdict("unknown", note="no question formalised")   # never 'facts recorded'
             goal = self.prog.questions[0]
         if goal and goal[0] == "universal":
             return self._answer_universal(self.prog.universal_questions[goal[1]])
         if goal and goal[0] == "disjunctive":
             return self._answer_disjunctive(tuple(self.canon(l) for l in goal[1]))
         if goal and goal[0] == "formula":
-            return Verdict("inconnu", note="formula questions are decided by decide()")
+            return Verdict("unknown", note="formula questions are decided by decide()")
         gs = tuple(self.canon(l) for l in goal)
         if self.overflow:
-            return Verdict("inconnu", note=f"fact limit {self.max_facts} reached")
+            return Verdict("unknown", note=f"fact limit {self.max_facts} reached")
         if self.refuted_disjunction is not None and not self.contradictions:
             d = self.refuted_disjunction
-            return Verdict("contradictoire", contradictions=[" | ".join(str(l) for l in d)],
+            return Verdict("contradictory", contradictions=[" | ".join(str(l) for l in d)],
                            proof=[f"CONTRADICTION: every disjunct of {' | '.join(str(l) for l in d)} is refuted"]
                            + sum((self._proof(l.flip()) for l in d), []))
         if self.contradictions:
             c = self.contradictions[0]
             used = self._used(c) | self._used(c.flip())
-            return Verdict("contradictoire", contradictions=[f"{l} / {l.flip()}" for l in self.contradictions],
+            return Verdict("contradictory", contradictions=[f"{l} / {l.flip()}" for l in self.contradictions],
                            proof=[f"CONTRADICTION {c} / {c.flip()}"] + self._proof(c) + self._proof(c.flip()),
                            used=sorted(used), depends_on_knowledge=bool(used & self.knowledge_sids))
         if any(l.vars() for l in gs):
             binds = list(self._matches(gs, {}))
             if not binds:
-                return Verdict("inconnu", note="no instance derivable")
-            return self._verdict("oui", [subst_lit(l, binds[0]) for l in gs], bindings=binds)
+                return Verdict("unknown", note="no instance derivable")
+            return self._verdict("yes", [subst_lit(l, binds[0]) for l in gs], bindings=binds)
         if all(l in self.kb or self._goal_directed(l) for l in gs):
-            return self._verdict("oui", list(gs))
+            return self._verdict("yes", list(gs))
         for l in gs:
             if l.flip() in self.kb or self._goal_directed(l.flip()):
-                return self._verdict("non", [l.flip()])
-        # Reductio (classical refutation, FOLIO run of 2026-10-25: 10 of 16 "non" items were missed).
+                return self._verdict("no", [l.flip()])
+        # Reductio (classical refutation, FOLIO run of 2026-10-25: 10 of 16 "no" items were missed).
         # The knowledge base is consistent here. If assuming the goal makes it inconsistent, the
         # goal is false; if assuming its negation does, the goal is true. Sound: the rules only
         # derive classical consequences, so KB + g inconsistent means KB entails not g.
         if self.reductio and len(gs) == 1:
             g = gs[0]
-            for hyp, ans in ((g, "non"), (g.flip(), "oui")):
+            for hyp, ans in ((g, "no"), (g.flip(), "yes")):
                 trial = Engine(self.prog, self.use_knowledge, True, self.merge_typical, self.max_facts,
                                reductio=False, extra_facts=self.extra_facts + [hyp])
                 if trial.inconsistent and not trial.overflow:
@@ -761,51 +778,51 @@ class Engine:
                     return Verdict(ans, proof=[f"REDUCTIO: assume {hyp}"] + trial._proof(c) + trial._proof(c.flip()),
                                    used=sorted(used), depends_on_knowledge=bool(used & trial.knowledge_sids),
                                    note="by refutation (reductio ad absurdum)")
-        return Verdict("inconnu")
+        return Verdict("unknown")
 
     def _answer_disjunctive(self, lits: Tuple[Lit, ...]) -> Verdict:
         """? a | b : oui if some disjunct is derived (or assuming all their negations is inconsistent);
         non if every disjunct is refuted; inconnu otherwise."""
         if self.overflow:
-            return Verdict("inconnu", note=f"fact limit {self.max_facts} reached")
+            return Verdict("unknown", note=f"fact limit {self.max_facts} reached")
         if self.inconsistent:
             return self.answer(())
         if any(l.vars() for l in lits):
-            return Verdict("inconnu", note="disjunctive question with a variable: not supported")
+            return Verdict("unknown", note="disjunctive question with a variable: not supported")
         for l in lits:
             if l in self.kb or self._goal_directed(l):
-                return self._verdict("oui", [l])
+                return self._verdict("yes", [l])
         if all(l.flip() in self.kb for l in lits):
-            return self._verdict("non", [l.flip() for l in lits])
+            return self._verdict("no", [l.flip() for l in lits])
         if self.reductio:
             trial = Engine(self.prog, self.use_knowledge, True, self.merge_typical, self.max_facts,
                            reductio=False, extra_facts=self.extra_facts + [l.flip() for l in lits])
             if trial.inconsistent and not trial.overflow:
-                return Verdict("oui", proof=[f"REDUCTIO: assuming {' and '.join(str(l.flip()) for l in lits)} is inconsistent"],
+                return Verdict("yes", proof=[f"REDUCTIO: assuming {' and '.join(str(l.flip()) for l in lits)} is inconsistent"],
                                note="by refutation (reductio ad absurdum)")
-        return Verdict("inconnu")
+        return Verdict("unknown")
 
     def _answer_universal(self, q: Rule) -> Verdict:
         """? body => head  ("all X are Y", "no X is Y" with a negated head).
         non : a counterexample among the known constants (body derived, head refuted);
         oui : universal introduction — fresh constants for the variables, body assumed, head derived;
         inconnu otherwise. (FOLIO 2026-10-25: items 306 and 325 were universal negatives that the
-        translator could only approximate by an existential question, which produced two false "oui".)"""
+        translator could only approximate by an existential question, which produced two false "yes".)"""
         if self.overflow:
-            return Verdict("inconnu", note=f"fact limit {self.max_facts} reached")
+            return Verdict("unknown", note=f"fact limit {self.max_facts} reached")
         if self.contradictions:
-            return self.answer(())                      # reports "contradictoire" as usual
+            return self.answer(())                      # reports "contradictory" as usual
         body = tuple(self.canon(b) for b in q.body)
         head = self.canon(q.head)
         for s in self._matches(body, {}):               # counterexample search
             h = subst_lit(head, s)
             if h.flip() in self.kb:
-                return self._verdict("non", [h.flip()] + [subst_lit(b, s) for b in body])
+                return self._verdict("no", [h.flip()] + [subst_lit(b, s) for b in body])
             if self.reductio:
                 trial = Engine(self.prog, self.use_knowledge, True, self.merge_typical, self.max_facts,
                                reductio=False, extra_facts=self.extra_facts + [h])
                 if trial.inconsistent and not trial.overflow:
-                    return Verdict("non", proof=[f"COUNTEREXAMPLE {s}: assuming {h} is inconsistent"],
+                    return Verdict("no", proof=[f"COUNTEREXAMPLE {s}: assuming {h} is inconsistent"],
                                    note="universal refuted by a counterexample (reductio)")
         fresh = {v: f"fresh_{v.lower()}" for b in body for v in b.vars()}
         hyp = [subst_lit(b, fresh) for b in body]
@@ -814,16 +831,16 @@ class Engine:
         target = subst_lit(head, fresh)
         if target in trial.kb and not trial.contradictions:
             used = trial._used(target) - {"hypothesis"}
-            return Verdict("oui", proof=[f"UNIVERSAL: for a fresh {fresh}, assume {' & '.join(str(h) for h in hyp)}"]
+            return Verdict("yes", proof=[f"UNIVERSAL: for a fresh {fresh}, assume {' & '.join(str(h) for h in hyp)}"]
                            + trial._proof(target), used=sorted(used),
                            depends_on_knowledge=bool(used & trial.knowledge_sids), note="universal introduction")
         if self.reductio:                                # head's negation inconsistent under the assumption
             trial2 = Engine(self.prog, self.use_knowledge, True, self.merge_typical, self.max_facts,
                             reductio=False, extra_facts=self.extra_facts + hyp + [target.flip()])
             if trial2.inconsistent and not trial2.overflow and not trial.inconsistent:
-                return Verdict("oui", proof=[f"UNIVERSAL by refutation: assume {' & '.join(str(h) for h in hyp)} and {target.flip()}"],
+                return Verdict("yes", proof=[f"UNIVERSAL by refutation: assume {' & '.join(str(h) for h in hyp)} and {target.flip()}"],
                                note="universal introduction (reductio)")
-        return Verdict("inconnu", note="universal question: no counterexample, no derivation")
+        return Verdict("unknown", note="universal question: no counterexample, no derivation")
 
     def answers(self) -> List[Verdict]:
         return [self.answer(q) for q in self.prog.questions] or [self.answer()]
@@ -865,14 +882,14 @@ def decide_formula(prog: Program, f, use_knowledge: bool = True, **kw) -> Verdic
     oui if KB + not f is inconsistent in every branch, non if KB + f is, contradictoire if KB itself is."""
     kw.pop("reductio", None)
     if _unsat(prog, use_knowledge, [], **kw):
-        return Verdict("contradictoire", note="the premises are inconsistent")
+        return Verdict("contradictory", note="the premises are inconsistent")
     neg_unsat = _unsat(prog, use_knowledge, cnf(f, negate=True), **kw)
     pos_unsat = _unsat(prog, use_knowledge, cnf(f), **kw)
     if neg_unsat and not pos_unsat:
-        return Verdict("oui", note="formula entailed (refutation of its negation)")
+        return Verdict("yes", note="formula entailed (refutation of its negation)")
     if pos_unsat and not neg_unsat:
-        return Verdict("non", note="formula refuted (assuming it is inconsistent)")
-    return Verdict("inconnu")
+        return Verdict("no", note="formula refuted (assuming it is inconsistent)")
+    return Verdict("unknown")
 
 
 def decide(prog: Program, use_knowledge: bool = True, **kw) -> Verdict:
@@ -881,22 +898,36 @@ def decide(prog: Program, use_knowledge: bool = True, **kw) -> Verdict:
     if prog.questions and prog.questions[0] and prog.questions[0][0] == "formula":
         return decide_formula(prog, prog.questions[0][1], use_knowledge, **kw)
     if not prog.disjunctions and not prog.drules:
-        return Engine(prog, use_knowledge=use_knowledge, **kw).answer()
+        return Engine(prog, use_knowledge=use_knowledge, **kw).answer()   # no disjunction anywhere: single engine
     try:
         ls = leaves(prog, use_knowledge, **kw)
     except RuntimeError as e:
-        return Verdict("inconnu", note=str(e))
+        return Verdict("unknown", note=str(e))
     if not ls:
         root = Engine(prog, use_knowledge=use_knowledge, **kw)
         v = root.answer()
-        return v if v.answer == "contradictoire" else Verdict("contradictoire", note="every disjunction branch is inconsistent")
+        return v if v.answer == "contradictory" else Verdict("contradictory", note="every disjunction branch is inconsistent")
     vs = [leaf.answer() for leaf in ls]
     answers = {v.answer for v in vs}
-    if len(answers) == 1:
+    if len(answers) == 1 and vs[0].answer != "unknown":
         v = vs[0]
         v.note = (v.note + " | " if v.note else "") + f"holds in all {len(ls)} disjunction branches"
         return v
-    return Verdict("inconnu", note=f"disjunction: {len(ls)} branches disagree ({', '.join(sorted(answers))})")
+    # ref-2.3: a ground literal (or conjunction) left "unknown" by the branches is decided by refutation with the
+    # full case split, including the disjunctions that the hypothesis itself triggers (FOLIO 203x3, 2026-11-02:
+    # clingo answered 11 programs the reference engine left unknown, e.g. a hypothesis whose disjunctive
+    # consequences all lead to a contradiction)
+    q = prog.questions[0] if prog.questions else None
+    if q and q[0] not in ("universal", "disjunctive", "formula") and not any(l.vars() for l in q):
+        f = q[0]
+        for l in q[1:]:
+            f = ("and", f, l)
+        v = decide_formula(prog, f, use_knowledge, **kw)
+        if v.answer != "unknown":
+            return v
+    if len(answers) == 1:
+        return vs[0]
+    return Verdict("unknown", note=f"disjunction: {len(ls)} branches disagree ({', '.join(sorted(answers))})")
 
 
 def run(program_text: str, source_text: Optional[str] = None, **engine_kw) -> Tuple[Program, Verdict]:

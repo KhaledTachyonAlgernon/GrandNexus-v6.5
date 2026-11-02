@@ -16,7 +16,7 @@ def append(p, text):
     write(p, s.rstrip("\n") + "\n\n" + text.strip("\n") + "\n")
 
 def reindent(p, start, end, delta):
-    """Décale de `delta` espaces les lignes [start, end] (numérotation 1)."""
+    """Décale de `delta` espaces les lines [start, end] (numérotation 1)."""
     lines = read(p).split("\n")
     for k in range(start - 1, end):
         l = lines[k]
@@ -29,7 +29,7 @@ def reindent(p, start, end, delta):
     write(p, "\n".join(lines))
 
 def copy_new(name, dest):
-    """Installe un fichier neuf depuis tools/new_files/."""
+    """Installe un file neuf depuis tools/new_files/."""
     src = ROOT / "tools" / "new_files" / name
     (ROOT / dest).write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
 
@@ -46,8 +46,8 @@ def add_import(p, line):
     write(p, "\n".join(lines))
 
 def dedent_from(p, prefix):
-    """Ramène au niveau module une fonction indentée par erreur dans une classe
-    (et tout ce qui la suit jusqu'à la fin du fichier)."""
+    """Ramène au niveau module une fonction indentée par error dans une classe
+    (et tout ce qui la suit jusqu'à la fin du file)."""
     lines = read(p).split("\n")
     i = next(k for k, l in enumerate(lines) if l.startswith("    " + prefix))
     for k in range(i, len(lines)):

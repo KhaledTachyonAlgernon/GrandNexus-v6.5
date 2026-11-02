@@ -1,6 +1,6 @@
 """
 Étape 0 — Extraction brute du notebook GrandNexus V6.4 (29/05/2025) en paquet Python.
-Aucune modification du code : chaque cellule est copiée telle quelle dans son fichier.
+Aucune modification du code : chaque cellule est copiée telle quelle dans son file.
 Les doublons sont conservés sous un autre nom (rien n'est jeté).
 Usage : python tools/extract_notebook.py archive/GrandNexusV_6_4_29_05_2025.ipynb
 """

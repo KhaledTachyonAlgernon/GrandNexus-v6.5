@@ -34,7 +34,7 @@ def r4_graph_factory():
         if lines[k].startswith("    "): lines[k] = lines[k][4:]
     write(p, "\n".join(lines))
     for p in ("grandnexus/graph/graph_engine.py", "grandnexus/graph/graph_engine_v1.py"):
-        append(p, "# --- réparation 6.5 : nom attendu par pattern_recognizer, reasoning_core, llm_engine\nGraphEngine = AbstractGraphEngine")
+        append(p, "# --- réparation 6.5 : nom expected par pattern_recognizer, reasoning_core, llm_engine\nGraphEngine = AbstractGraphEngine")
 
 def r5_aliases():
     """Noms importés par cognition_manager / adaptation / reflection qui existaient sous un autre nom."""
@@ -47,7 +47,7 @@ def r5_aliases():
         "grandnexus/cognition/metacognition/monitor.py": "MetaMonitor = CognitiveMonitor",
     }
     for p, line in A.items():
-        append(p, "# --- réparation 6.5 : alias du nom attendu par les autres modules\n" + line)
+        append(p, "# --- réparation 6.5 : alias du nom expected par les autres modules\n" + line)
 
 def r6_missing_classes():
     """LearningResult (jamais écrite) ; create_pattern_mining (enfermée dans la classe)."""
@@ -82,7 +82,7 @@ def r7_event_bus():
 
 def r8_cognitive_contract():
     """Contrat inter-modules : les classes Cognitive* manquantes viennent de contracts.py ;
-    CognitionManager hérite du routage de capacités ; constructeurs alignés sur les appels réels."""
+    CognitionManager hérite du routage de capacités ; constructeurs alignés sur les calls réels."""
     copy_new("contracts.py", "grandnexus/cognition/contracts.py")
     for p in ("grandnexus/cognition/perception/perception_core.py",
               "grandnexus/cognition/reasoning/reasoning_core.py"):
@@ -166,7 +166,7 @@ def r10_flat_namespace_imports():
 
 def r11_logic_bugs():
     """Vrais bugs de logique trouvés par pyflakes.
-    - semantic.py : 'remaining -= cluster' coupé en deux lignes -> la boucle de
+    - semantic.py : 'remaining -= cluster' coupé en deux lines -> la boucle de
       clustering ne retirait jamais les concepts traités (boucle infinie possible).
     - nexus_core.stop() : l'arrêt de ErrorRecoveryManager était placé après le return
       (code mort) -> son thread n'était jamais arrêté."""
@@ -174,8 +174,8 @@ def r11_logic_bugs():
                  "                    remainin\n                    g -= cluster\n",
                  "                    remaining -= cluster\n")
     replace_once("grandnexus/core/nexus_core.py",
-                 "      return stop_success\n\n      # Arrêter le gestionnaire d'erreurs\n      self.error_recovery.shutdown()\n      return success\n",
-                 "      # Arrêter le gestionnaire d'erreurs (réparation 6.5 : était après le return)\n"
+                 "      return stop_success\n\n      # Arrêter le gestionnaire d'errors\n      self.error_recovery.shutdown()\n      return success\n",
+                 "      # Arrêter le gestionnaire d'errors (réparation 6.5 : était après le return)\n"
                  "      if hasattr(self, \"error_recovery\"):\n          try:\n              self.error_recovery.shutdown()\n"
                  "          except Exception as e:\n              self.logger.error(f\"ErrorRecoveryManager.shutdown: {e}\")\n\n      return stop_success\n")
 
@@ -294,7 +294,7 @@ def r20_working_memory_item():
 
 def r21_orchestrator_session_output():
     """process_input() renvoyait les résultats de raisonnement de N'IMPORTE QUELLE session :
-    la question 2 recevait la réponse de la question 1 (contamination mémoire).
+    la question 2 recevait la answer de la question 1 (contamination mémoire).
     Les éléments sont maintenant filtrés sur la session courante (horodatage >= début)."""
     p = "grandnexus/cognition/orchestration/cognitive_orchestrator.py"
     replace_once(p, '''                reasoning_results = self.working_memory.retrieve(
@@ -395,8 +395,8 @@ def r26_attention_v2_default():
 
 def r27_orchestrator_session_filter_first():
     """Suite de R21 : le filtre « session courante » s'appliquait APRÈS la coupe à 50
-    résultats ; après une dizaine de questions, les anciennes réponses (plus importantes)
-    occupaient les 50 places et la réponse du moment disparaissait (7/12 au labo).
+    résultats ; après une dizaine de questions, les anciennes answers (plus importantes)
+    occupaient les 50 places et la answer du moment disparaissait (7/12 au labo).
     Filtre d'abord, coupe ensuite."""
     p = "grandnexus/cognition/orchestration/cognitive_orchestrator.py"
     s = read(p)
@@ -455,13 +455,13 @@ def r31_interruptible_loops():
     p = "grandnexus/core/errorRecoveryManager.py"
     replace_once(p, "                time.sleep(self.health_check_interval)\n",
                  "                self.stop_monitoring.wait(self.health_check_interval)  # réparation 6.5 : interruptible\n")
-    replace_once(p, "                time.sleep(5)  # Court sommeil en cas d'erreur\n",
-                 "                self.stop_monitoring.wait(5)  # Court sommeil en cas d'erreur (interruptible)\n")
+    replace_once(p, "                time.sleep(5)  # Court sommeil en cas d'error\n",
+                 "                self.stop_monitoring.wait(5)  # Court sommeil en cas d'error (interruptible)\n")
 
 def r32_deduction_fixpoint():
     """Diagnostic par oracles : la déduction n'enchaînait que 2 pas (modus ponens + un
     seul niveau « transitif ») et ignorait la contraposée. Réparation dans la stratégie
-    existante : chaînage jusqu'à stabilité + règles contraposées (si A alors B => si
+    existante : chaînage jusqu'à stability + règles contraposées (si A alors B => si
     non-B alors non-A)."""
     p = "grandnexus/cognition/reasoning/reasoning_core.py"
     replace_once(p, '''        rules = inputs.get("rules", [])
@@ -498,7 +498,7 @@ def r32_deduction_fixpoint():
         _known = set(premises) | {c["statement"] for c in conclusions}
         _frontier = list(conclusions)
         _i = 0
-        while _i < len(_frontier) and len(_known) < 5000:  # réparation 6.5 : jusqu'à stabilité
+        while _i < len(_frontier) and len(_known) < 5000:  # réparation 6.5 : jusqu'à stability
             conclusion = _frontier[_i]
             _i += 1
             statement = conclusion["statement"]
@@ -512,8 +512,8 @@ def r32_deduction_fixpoint():
 ''')
 
 def r33_llm_engine_anthropic():
-    """LLMEngine (chemin Anthropic) : complete() ne transmettait jamais le modèle configuré,
-    _call_anthropic retombait sur un modèle retiré (claude-3-sonnet-20240229) et ne savait
+    """LLMEngine (chemin Anthropic) : complete() ne transmettait jamais le model configuré,
+    _call_anthropic retombait sur un model retiré (claude-3-sonnet-20240229) et ne savait
     pas passer de consigne système. Modèle et consigne système sont maintenant transmis."""
     p = "grandnexus/llm_interface/llm_engine.py"
     replace_once(p, '''                "request_type": request.request_type,
@@ -624,7 +624,7 @@ def r34_anthropic_sampling_and_receipts():
                 return result''')
 
 def r35_graph_manager_interface():
-    """ModuleRegistry refused GraphModuleManager ("provides neither start() nor
+    """ModuleRegistry refused GraphModuleManager ("proempty neither start() nor
     handle_message()"), seen as an ERROR in the Colab log. start()/stop() are added, and
     handle_message() forwards point-to-point "graph.*" messages to the event bus where the
     manager's handlers already listen."""

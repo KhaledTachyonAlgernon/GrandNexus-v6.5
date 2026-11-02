@@ -88,7 +88,7 @@ class ReasoningEngine:
         else:
             out = self.text_reasoner.answer(key)
             self._answered[key] = out
-        decided = out["answer"] in ("oui", "non", "contradictoire")
+        decided = out["answer"] in ("yes", "no", "contradictory")
         return {"success": decided or bool(out["derived"]),
                 "conclusions": [{"question": key, "answer": out["answer"], "verdicts": out["verdicts"]}],
                 "confidence": out["confidence"], "task_type": task.get("task_type") if isinstance(task, dict) else None}
