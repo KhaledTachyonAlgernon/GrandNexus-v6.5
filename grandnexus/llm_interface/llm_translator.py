@@ -459,7 +459,7 @@ class LLMTranslator(CognitiveModuleBase):
         _, raw = self._cached("direct", text, DIRECT_SYSTEM, f"TEXT:\n{text}")
         token = _norm(raw).split()[:1]
         token = token[0] if token else ""
-        mapping = {"yes": "oui", "no": "non", "unknown": "inconnu", "contradictory": "contradictoire"}
+        mapping = {"yes": "yes", "no": "no", "unknown": "unknown", "contradictory": "contradictory"}
         return mapping.get(token, token)
 
     # -- capabilities ---------------------------------------------------------

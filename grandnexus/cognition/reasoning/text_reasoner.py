@@ -5,7 +5,7 @@ text_reasoner.py — Perception -> premises -> ReasoningCore pathway.
          ─► grounding  universal rules (variables X, Y) instantiated on known constants,
                        containment ("in") made transitive
          ─► ReasoningCore deduction (existing strategies, chained to a fixpoint)
-         ─► verdict    oui / non / inconnu / contradictoire (global consistency check),
+         ─► verdict    yes / no / unknown / contradictory (global consistency check),
                        or a number for quantity questions (expression computed by sympy)
          ─► write-back shared graph, working memory, event bus
 
@@ -30,7 +30,7 @@ from grandnexus.cognition.perception.premise_extractor import PremiseExtractor
 ATOM = re.compile(r"^(not )?([^\W\d]\w*)\((\w+(?:,\w+){0,2})\)$", re.UNICODE)   # 1 to 3 arguments
 VARIABLE = re.compile(r"^[XYZ]$")
 QUANTITY_QUESTION = re.compile(r"\b(combien|how many|how much|quel(?:le)? est le nombre|what is the number)\b", re.I)
-DECIDED = ("oui", "non", "contradictoire")
+DECIDED = ("yes", "no", "contradictory")
 TYPICAL = re.compile(r"^(?:typical|generic|average|typique|generique|générique)_(\w+)$|^(\w+)_(?:typique|typical|generique|générique)$")
 
 
@@ -141,7 +141,7 @@ class TextReasoner(CognitiveModuleBase):
                     return out
             else:
                 # the grammar has no arithmetic: say so instead of forcing a meaningless goal
-                return self._result("inconnu", [], 0.0,
+                return self._result("unknown", [], 0.0,
                                     {"facts": [], "rules": [], "goals": ["quantity"],
                                      "unparsed": ["quantity question: needs the LLM translator (mode 'llm' or 'hybrid')"],
                                      "trace": ["quantity | detected, not handled by the grammar"]},
@@ -177,7 +177,7 @@ class TextReasoner(CognitiveModuleBase):
         body, query = self._split_question(text)
         r = self.nx_translator.answer(body, query)
         strict, full = r["verdict_strict"], r["verdict"]
-        answer = r["answer_strict"] if strict == "oui" else strict      # numbers for "how many" questions
+        answer = r["answer_strict"] if strict == "yes" else strict      # numbers for "how many" questions
         out = self._result(answer, [{"goal": query, "answer": answer, "confidence": 0.95 if strict in DECIDED else 0.0,
                                      "support": [{"statement": l, "from": "proof"} for l in r["proof"][:12]]}],
                            0.95 if strict in DECIDED else 0.0,
@@ -185,7 +185,7 @@ class TextReasoner(CognitiveModuleBase):
                             "unparsed": r["rejections"], "trace": ["nx | " + l for l in r["program"].splitlines() if l.strip()]},
                            [], ["nexus_logic:" + r["engine_version"]], "nx", perception, t0)
         out["strict_answer"] = strict
-        out["answer_with_knowledge"] = r["answer"] if full == "oui" else full
+        out["answer_with_knowledge"] = r["answer"] if full == "yes" else full
         out["depends_on_knowledge"] = bool(r["depends_on_knowledge"]) and full != strict
         out["program"] = r["program"]
         out["receipts"] = {"calls": r["calls"], "message_ids": r["message_ids"], "model": r["model"]}
@@ -305,20 +305,20 @@ class TextReasoner(CognitiveModuleBase):
         verdicts = []
         for g in goals:
             if contradictions:          # inconsistent premises: no answer can be trusted
-                verdicts.append({"goal": g, "answer": "contradictoire", "confidence": 0.0,
+                verdicts.append({"goal": g, "answer": "contradictory", "confidence": 0.0,
                                  "support": [known[c] for c in contradictions[:3]]
                                             + [known["not " + c] for c in contradictions[:3]],
                                  "contradictions": contradictions})
                 continue
-            # convention (aligned with the reference engine nexus_logic): "oui" means the asked
+            # convention (aligned with the reference engine nexus_logic): "yes" means the asked
             # literal holds, even when it is negative ("is it true that the lamp is not on?" -> oui)
             pos, neg = g in known, _negate(g) in known
             if pos:
-                v, conf = "oui", known[g]["confidence"]
+                v, conf = "yes", known[g]["confidence"]
             elif neg:
-                v, conf = "non", known[_negate(g)]["confidence"]
+                v, conf = "no", known[_negate(g)]["confidence"]
             else:
-                v, conf = "inconnu", 0.0
+                v, conf = "unknown", 0.0
             verdicts.append({"goal": g, "answer": v, "confidence": conf,
                              "support": [known[x] for x in (g, _negate(g)) if x in known]})
         return verdicts
@@ -375,7 +375,7 @@ class TextReasoner(CognitiveModuleBase):
             else:
                 verdicts, derived = strict, derived_s
             # policy (v7.0): the answer is the strict verdict; the knowledge-based one is reported apart
-            answer = strict[0]["answer"] if strict else ("inconnu" if "?" in str(b.get("text", "")) else ("faits enregistrés" if facts else "inconnu"))
+            answer = strict[0]["answer"] if strict else ("unknown" if "?" in str(b.get("text", "")) else ("facts recorded" if facts else "unknown"))
             out = self._result(answer, strict, strict[0]["confidence"] if strict else 0.0,
                                {"facts": facts, "rules": [(r["if"], r["then"]) for r in strict_rules],
                                 "goals": goals, "unparsed": b["unparsed"], "trace": b["trace"]},
@@ -407,7 +407,7 @@ class TextReasoner(CognitiveModuleBase):
         asked = "?" in str(b.get("text", ""))
         if not verdicts and asked:
             b["unparsed"] = list(b["unparsed"]) + ["question present but no goal could be formalised"]
-        answer = verdicts[0]["answer"] if verdicts else ("faits enregistrés" if facts and not asked else "inconnu")
+        answer = verdicts[0]["answer"] if verdicts else ("facts recorded" if facts and not asked else "unknown")
         out = self._result(answer, verdicts, verdicts[0]["confidence"] if verdicts else 0.0,
                            {"facts": facts, "rules": [(r["if"], r["then"]) for r in strict_rules],
                             "goals": goals, "unparsed": b["unparsed"], "trace": b["trace"]},
@@ -423,7 +423,7 @@ class TextReasoner(CognitiveModuleBase):
         if not eq["expression"] and not eq["rejected"]:
             return None                         # not a numeric question after all
         value = eq["value"] if eq["ok"] else None
-        answer = str(value) if value is not None else "inconnu"
+        answer = str(value) if value is not None else "unknown"
         trace = [f"equation | {eq['expression']} = {value} {eq['unit']}".strip()] + \
                 [f"rejected | {r.get('reason')}" for r in eq["rejected"]]
         out = self._result(answer, [{"goal": "quantity", "answer": answer,

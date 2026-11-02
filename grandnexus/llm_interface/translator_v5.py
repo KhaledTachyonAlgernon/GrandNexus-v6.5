@@ -1,11 +1,11 @@
 """
-Claude comme traducteur ancré — prompt v5, dérivé de LANGUAGE_SPEC (une seule source de vérité avec l'analyseur).
-Modes : answer() = traduction + moteur (verdict avec et sans connaissance de fond, preuve, reçus) ;
-direct() = Claude seul (témoin). FakeClient = SDK factice pour les tests hors ligne.
-Chaque résultat note l'ID du modèle réellement utilisé (manquait au carnet).
+Claude as an anchored translator - prompt v5.x, derived from LANGUAGE_SPEC (one source of truth shared with the parser).
+Modes: answer() = translation + engine (verdict with and without background knowledge, proof, receipts);
+direct() = Claude alone (control). FakeClient = fake SDK for offline tests.
+Every result records the id of the model actually used.
 
-Written by the external reviewer (Fable 5.1, 2026-10-25); integrated unchanged except DEFAULT_MODEL,
-which pointed to a retired model id: the measured model of this project is claude-sonnet-5-5.
+Written by the external reviewer (Fable 5.1, 2026-10-25); DEFAULT_MODEL set to the measured model (claude-sonnet-5-5),
+prompt evolved to v5.4 (universal questions, disjunctions, compound questions).
 """
 from __future__ import annotations
 
@@ -19,10 +19,10 @@ from grandnexus.nexus_logic import ENGINE_VERSION, LANGUAGE_SPEC, Program, decid
 
 PROMPT_VERSION = "v5.4"  # 5.3: disjunction example ; 5.4: compound questions as formulas, "doesn't B or C" convention
 DEFAULT_MODEL = os.environ.get("GN_MODEL", "claude-sonnet-5-5")
-VERDICTS = ("oui", "non", "inconnu", "contradictoire")
+VERDICTS = ("yes", "no", "unknown", "contradictory")
 
 SYSTEM_TRANSLATE = """You translate a text and a question into a program for a small deductive engine.
-The engine knows ONLY what you write. It cannot guess, has no common sense, and answers "inconnu" for
+The engine knows ONLY what you write. It cannot guess, has no common sense, and answers "unknown" for
 anything it cannot derive. Your job is fidelity to the text, not helpfulness.
 
 LANGUAGE
@@ -78,7 +78,7 @@ OUTPUT
 One fenced block ```nx ... ``` with one statement per line, and nothing else."""
 
 SYSTEM_DIRECT = """You answer a question from a text using only what the text says.
-Reply with exactly one token: oui, non, inconnu (not derivable from the text), contradictoire (the text
+Reply with exactly one token: yes, no, unknown (not derivable from the text), contradictory (the text
 contradicts itself), or a number for "how many" questions. No explanation."""
 
 _FENCE = re.compile(r"```(?:nx)?[ \t]*\n(.*?)```", re.S)
@@ -108,7 +108,7 @@ def _default_client():
 
 
 class FakeClient:
-    """Remplaçant hors ligne du SDK : rend les réponses dans l'ordre (tests sans API, zéro coût)."""
+    """Offline stand-in for the SDK: returns the canned replies in order (tests without API, zero cost)."""
     def __init__(self, replies: List[str]) -> None:
         self._replies = list(replies)
         self.messages = self
@@ -179,9 +179,9 @@ class Translator:
                 "engine_version": ENGINE_VERSION, **self._tally(n0)}
 
     def direct(self, text: str, query: str) -> Dict[str, Any]:
-        """Témoin : Claude seul, sans moteur."""
+        """Control: Claude alone, no engine."""
         n0 = len(self.receipts)
         reply = self._call(SYSTEM_DIRECT, _user(text, query), "direct").strip().lower()
         word = next((v for v in VERDICTS if re.search(rf"\b{v}\b", reply)), None)
         num = re.search(r"-?\d+(?:\.\d+)?", reply)
-        return {"answer": word or (num.group(0) if num else "inconnu"), "raw": reply[:200], **self._tally(n0)}
+        return {"answer": word or (num.group(0) if num else "unknown"), "raw": reply[:200], **self._tally(n0)}

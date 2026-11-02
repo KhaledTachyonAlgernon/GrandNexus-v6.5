@@ -1,5 +1,5 @@
 """
-Extraction de la couche expérimentale du .py du 15/05/2025 (lignes 54751-fin).
+Extraction de la couche expérimentale du .py du 15/05/2025 (lines 54751-fin).
 - Chaque module va au chemin indiqué par son en-tête « # grandnexus/... ».
 - Collision avec un module du cœur (memory/working, memory/semantic,
   perception/filters/attention_filter) -> suffixe _v2 : le cœur n'est jamais écrasé.
@@ -93,7 +93,7 @@ def main():
     for start, end, dest in SEGMENTS:
         chunk = "\n".join(L[start - 1:(end if end else len(L))])
         if dest.endswith(".py") and dest.startswith("grandnexus/"):
-            chunk = (f"# Extrait de GrandNexusV6.4 du 15/05/2025, lignes {start}-{end or len(L)}\n" + chunk)
+            chunk = (f"# Extrait de GrandNexusV6.4 du 15/05/2025, lines {start}-{end or len(L)}\n" + chunk)
             chunk = guard_demos(chunk)
         out = ROOT / dest
         out.parent.mkdir(parents=True, exist_ok=True)

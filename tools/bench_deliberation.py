@@ -72,16 +72,16 @@ def main(argv=None, client=None) -> dict:
         items = items[: a.n]
     sha = freeze(items)
     name = f"delib_{'local' if a.jsonl else 'folio_' + a.split}_skip{a.skip}_{len(items)}_{sha}_{time.strftime('%Y-%m-%d_%H%M%S')}"
-    print(f"[{name}] {len(items)} items figés (sha de contenu {sha}), labels {dict(Counter(i['expected'] for i in items))}")
+    print(f"[{name}] {len(items)} items frozen (sha de contenu {sha}), labels {dict(Counter(i['expected'] for i in items))}")
 
     delib, trs = build(a.readers, a.model, client)
     rows = {p: [] for p in POLICIES}
-    rows.update({"direct": [], "toujours_inconnu": [], "majorite": [], "hasard": []})
+    rows.update({"direct": [], "always_unknown": [], "majority": [], "random": []})
     stats = Counter()
     majority_label = Counter(i["expected"] for i in items).most_common(1)[0][0]
     rng = random.Random(a.seed)
     outdir = pathlib.Path(a.out)
-    progdir = outdir / "programmes" / name
+    progdir = outdir / "programs" / name
     detail = []
     fails = 0
     for k, it in enumerate(items, 1):
@@ -108,19 +108,19 @@ def main(argv=None, client=None) -> dict:
             fails += 1
             print(f"  !! item {it['id']} : {type(e).__name__}: {str(e)[:160]}")
             for p in POLICIES:
-                rows[p].append({**base, "pred": "erreur"})
+                rows[p].append({**base, "pred": "error"})
             if fails >= 3 and k == fails:
-                print("  !! les 3 premiers items ont échoué -> arrêt (clé, crédit, réseau ?)")
+                print("  !! the first 3 items failed -> stop (key, credit, network?)")
                 break
         if a.direct:
             try:
                 d = trs[0].direct(it["text"], as_question(it["query"]))
                 rows["direct"].append({**base, "pred": normalise(d["answer"])})
             except Exception as e:  # noqa: BLE001
-                rows["direct"].append({**base, "pred": "erreur", "error": str(e)[:120]})
-        rows["toujours_inconnu"].append({**base, "pred": "inconnu"})
-        rows["majorite"].append({**base, "pred": majority_label})
-        rows["hasard"].append({**base, "pred": rng.choice(["oui", "non", "inconnu"])})
+                rows["direct"].append({**base, "pred": "error", "error": str(e)[:120]})
+        rows["always_unknown"].append({**base, "pred": "unknown"})
+        rows["majority"].append({**base, "pred": majority_label})
+        rows["random"].append({**base, "pred": rng.choice(["yes", "no", "unknown"])})
         if k % 10 == 0:
             print(f"  {k}/{len(items)} items")
 
@@ -130,21 +130,21 @@ def main(argv=None, client=None) -> dict:
     summary = {"set": name, "sha": sha, "n": len(items), "readers": a.readers, "model": a.model,
                "prompt_version": PROMPT_VERSION, "engine_version": ENGINE_VERSION,
                "calls": calls, "tokens": tokens, "stats": dict(stats), "modes": {}}
-    base_pct = max(metrics(rows[b])["pct"] for b in ("toujours_inconnu", "majorite", "hasard"))
-    print(f"\nmeilleur témoin trivial : {base_pct}%")
+    base_pct = max(metrics(rows[b])["pct"] for b in ("always_unknown", "majority", "random"))
+    print(f"\nbest trivial control : {base_pct}%")
     order = list(POLICIES) + (["direct"] if a.direct else [])
     for m in order:
         mt = metrics(rows[m])
         summary["modes"][m] = mt
-        print(f"{m:16} {mt['acc']:>3}/{mt['n']} = {mt['pct']:5}% | faux oui {mt['false_oui']} | faux non {mt['false_non']}"
-              f" | inventions {mt['inventions']} | inconnu {mt['inconnu']} | erreurs {mt['erreurs']}")
-    print(f"\nrumination : lectures unanimes {stats['unanimous']}/{n} | 2 premières d'accord {stats['first_two_agree']}/{n}"
-          f" | relectures ciblées {stats['reflections']} | rejets {stats['rejections']} | cannot express {stats['cannot_express']}")
-    print(f"coût : {calls} appels, {tokens} jetons | modèle {a.model} | lecteurs {a.readers} | prompt {PROMPT_VERSION} | moteur {ENGINE_VERSION}")
+        print(f"{m:16} {mt['acc']:>3}/{mt['n']} = {mt['pct']:5}% | false yes {mt['false_yes']} | false no {mt['false_no']}"
+              f" | inventions {mt['inventions']} | unknown {mt['unknown']} | errors {mt['errors']}")
+    print(f"\nrumination : unanimous readings {stats['unanimous']}/{n} | first two agree {stats['first_two_agree']}/{n}"
+          f" | targeted re-readings {stats['reflections']} | rejections {stats['rejections']} | cannot express {stats['cannot_express']}")
+    print(f"cost : {calls} calls, {tokens} tokens | model {a.model} | readers {a.readers} | prompt {PROMPT_VERSION} | engine {ENGINE_VERSION}")
     outdir.mkdir(parents=True, exist_ok=True)
     out = outdir / f"{name}.json"
     out.write_text(json.dumps({"summary": summary, "rows": rows, "detail": detail}, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(f"écrit : {out}")
+    print(f"written: {out}")
     return summary
 
 

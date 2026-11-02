@@ -1,6 +1,7 @@
-"""Export du même programme vers clingo (ASP) : second avis indépendant pour tools/diff_engines.py.
-Optionnel : `pip install clingo`. Limite documentée : le pas dirigé par le but (contraposées non sûres)
-n'est pas exporté, clingo refusant les règles non sûres ; diff_engines le signale au lieu de compter un bug."""
+"""Export of the same program to clingo (ASP): an independent second opinion for tools/diff_engines.py.
+Optional: `pip install clingo`. Documented limit: the goal-directed step (unsafe contrapositives) is not
+exported, clingo refusing unsafe rules; diff_engines flags it instead of counting a bug. Cautious semantics:
+a literal holds if it is in every answer set; formula questions by refutation, like the reference engine."""
 from __future__ import annotations
 
 from typing import List, Optional
@@ -31,20 +32,20 @@ def to_asp(eng: Engine) -> str:
     sigs |= {(l.atom.pred, len(l.atom.args)) for r in eng.rules for l in r.body + (r.head,)}
     sigs |= {(l.atom.pred, len(l.atom.args)) for lits, _ in dis for l in lits}
     sigs |= {(l.atom.pred, len(l.atom.args)) for r in drs for l in r.body + r.heads}
-    for pred, ar in sorted(sigs):                      # p et -p ensemble => aucun modèle => contradictoire
+    for pred, ar in sorted(sigs):                      # p and -p together => no model => contradictory
         vs = ",".join(f"V{i}" for i in range(ar))
         lines.append(f":- {pred}({vs}), -{pred}({vs}).")
     return "\n".join(lines)
 
 
 def clingo_verdict(prog: Program, use_knowledge: bool = True) -> Optional[str]:
-    """oui / non / inconnu / contradictoire selon clingo ; None si clingo absent ou question non exportable."""
+    """yes / no / unknown / contradictory selon clingo ; None si clingo absent ou question non exportable."""
     try:
         import clingo
     except ImportError:
         return None
     if not prog.questions:
-        return "inconnu"
+        return "unknown"
     if prog.questions[0] and prog.questions[0][0] in ("universal", "disjunctive"):
         return None                                       # universal / disjunctive questions: reference engine only
     eng = Engine(prog, use_knowledge=use_knowledge)
@@ -63,9 +64,9 @@ def clingo_verdict(prog: Program, use_knowledge: bool = True) -> Optional[str]:
             ctl.ground([("base", [])])
             return not ctl.solve().satisfiable
         if unsat([]):
-            return "contradictoire"
+            return "contradictory"
         neg, pos = unsat(cnf(f, negate=True)), unsat(cnf(f))
-        return "oui" if neg and not pos else "non" if pos and not neg else "inconnu"
+        return "yes" if neg and not pos else "no" if pos and not neg else "unknown"
     goal = [eng.canon(l) for l in prog.questions[0]]
     if any(l.vars() for l in goal):
         return None
@@ -83,18 +84,18 @@ def clingo_verdict(prog: Program, use_knowledge: bool = True) -> Optional[str]:
 
     sat, models = solve(text)
     if not sat:
-        return "contradictoire"
+        return "contradictory"
     atoms = set.intersection(*models) if models else set()        # cautious: true in every answer set
 
     def sym(l: Lit):
         return clingo.Function(l.atom.pred, [clingo.Number(a) if isinstance(a, int) else clingo.Function(a)
                                              for a in l.atom.args], not l.neg)
     if all(sym(l) in atoms for l in goal):
-        return "oui"
+        return "yes"
     if any(sym(l.flip()) in atoms for l in goal):
-        return "non"
+        return "no"
     if len(goal) == 1:                                   # reductio, same test as the reference engine
-        for hyp, ans in ((goal[0], "non"), (goal[0].flip(), "oui")):
+        for hyp, ans in ((goal[0], "no"), (goal[0].flip(), "yes")):
             if not solve(text + "\n" + _lit(hyp) + ".")[0]:
                 return ans
-    return "inconnu"
+    return "unknown"

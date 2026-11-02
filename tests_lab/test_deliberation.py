@@ -24,7 +24,7 @@ class Scripted:
         u = messages[0]["content"]
         text = next(t for t in SCRIPT if t in u)
         if "one token" in system:
-            body = "oui"
+            body = "yes"
         elif "Several independent readings" in u:
             body = P["t2_careful"]
         elif "rejected these lines" in u:
@@ -36,13 +36,13 @@ class Scripted:
                                usage=SimpleNamespace(input_tokens=1, output_tokens=1))
 
 d = tempfile.mkdtemp()
-items = [{"id": "1", "text": T1, "query": "Is Socrates mortal?", "expected": "oui"},
-         {"id": "2", "text": T2, "query": "Can Tweety fly?", "expected": "contradictoire"},
-         {"id": "3", "text": T3, "query": "Is Ana older than Ben?", "expected": "oui"}]
+items = [{"id": "1", "text": T1, "query": "Is Socrates mortal?", "expected": "yes"},
+         {"id": "2", "text": T2, "query": "Can Tweety fly?", "expected": "contradictory"},
+         {"id": "3", "text": T3, "query": "Is Ana older than Ben?", "expected": "yes"}]
 jl = pathlib.Path(d) / "set.jsonl"; jl.write_text("\n".join(json.dumps(i) for i in items), encoding="utf-8")
 import bench_deliberation as B
 s = B.main(["--jsonl", str(jl), "--skip", "0", "--direct", "--out", d], client=Scripted())
 m = s["modes"]
 ok = (m["single"]["acc"] == 2 and m["vote"]["acc"] == 2 and m["reflective"]["acc"] == 3
       and s["stats"]["reflections"] == 1 and s["stats"]["unanimous"] == 2)
-print("TOUS OK" if ok else f"ÉCHEC {json.dumps({k: v['acc'] for k, v in m.items()})} {s['stats']}")
+print("ALL OK" if ok else f"FAIL {json.dumps({k: v['acc'] for k, v in m.items()})} {s['stats']}")

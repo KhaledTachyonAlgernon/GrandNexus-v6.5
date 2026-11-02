@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 """
-Test différentiel sur des programmes .nx (écrits par bench_folio.py --save-programs ou à la main) :
-  moteur de référence  vs  clingo (si `pip install clingo`)  vs  moteur maison (ReasoningCore via TextReasoner).
-Chaque désaccord = un bug quelque part, ou une limite documentée (pas dirigé par le but, absent de l'ASP).
+Differential test on .nx programs (written by bench_folio.py --save-programs, or by hand):
+  reference engine  vs  clingo (if `pip install clingo`)  vs  home engine (ReasoningCore through TextReasoner).
+Every disagreement is a bug somewhere, or a documented limit (goal-directed step, absent from the ASP export;
+universal, disjunctive and formula questions: reference engine only; the home engine has no disjunction).
 
-  python tools/diff_engines.py tests_lab/resultats/programmes/<jeu>/ [-v]
+  python tools/diff_engines.py tests_lab/resultats/programmes/<set>/ [-v]
 
-Written by the external reviewer (Fable 5.1, 2026-10-25); home_verdict() written here (the adapter to the
-in-house engine), everything else unchanged.
+Written by the external reviewer (Fable 5.1, 2026-10-25); home_verdict() (the adapter to the in-house engine) added here.
 """
 from __future__ import annotations
 
@@ -87,14 +87,14 @@ def main() -> None:
         flags = []
         if asp is not None and asp != v.answer:
             dis_asp += 1
-            flags.append("≠clingo" + (" (pas dirigé par le but, attendu)" if v.note.startswith("goal-directed") else ""))
+            flags.append("≠clingo" + (" (goal-directed step, expected)" if v.note.startswith("goal-directed") else ""))
         if home is not None and home != v.answer:
             dis_home += 1
-            flags.append("≠maison")
+            flags.append("≠home")
         n += 1
         if flags or verbose:
-            print(f"{f.name:42s} ref={v.answer:14s} clingo={asp or '-':14s} maison={home or '-':14s} {' '.join(flags)}")
-    print(f"\n{n} programmes ; désaccords clingo : {dis_asp} ; désaccords moteur maison : {dis_home}")
+            print(f"{f.name:42s} ref={v.answer:14s} clingo={asp or '-':14s} home={home or '-':14s} {' '.join(flags)}")
+    print(f"\n{n} programs ; clingo disagreements : {dis_asp} ; home-engine disagreements : {dis_home}")
 
 
 if __name__ == "__main__":

@@ -1,13 +1,13 @@
 """
-boot.py — Assemblage de GrandNexus : crée et câble les modules dans le bon ordre.
+boot.py - Assembly of GrandNexus: creates and wires the modules in the right order.
 
     from grandnexus.boot import boot
     gn = boot()
     gn.cognition.invoke(CognitiveProcessType.PERCEPTION, "2*x + 3 = 7")
     gn.shutdown()
 
-Chaque étape est tracée dans gn.report : un module qui échoue n'arrête pas les
-suivants, il est noté (rien n'est masqué, rien n'est jeté).
+Every step is traced in gn.report: a failing module does not stop the next ones,
+it is recorded (nothing is hidden, nothing is thrown away).
 """
 
 import logging
@@ -48,12 +48,12 @@ class GrandNexusSystem:
 
     def print_report(self) -> None:
         for s in self.report:
-            print(f"{'OK  ' if s.ok else 'ÉCHEC'} {s.name:<38} {s.seconds:6.2f}s"
+            print(f"{'OK  ' if s.ok else 'FAIL'} {s.name:<38} {s.seconds:6.2f}s"
                   + (f"  {s.detail}" if s.ok and s.detail else "")
                   + ("" if s.ok else f"\n       └─ {s.error}"))
         n = sum(s.ok for s in self.report)
-        print(f"==> {n}/{len(self.report)} étapes de démarrage réussies | mode : {self.mode}"
-              + ("" if self.mode == "vivant" else " (NexusCore assemblé mais non démarré : gn.start() pour le lancer)"))
+        print(f"==> {n}/{len(self.report)} boot steps succeeded | mode : {self.mode}"
+              + ("" if self.mode == "vivant" else " (NexusCore assembled but not started : gn.start() to start it)"))
 
     def modules(self) -> Dict[str, Any]:
         out = {}
@@ -64,14 +64,14 @@ class GrandNexusSystem:
         return out
 
     def start(self) -> bool:
-        """Mode VIVANT : démarre NexusCore, qui démarre à son tour tous les modules
-        enregistrés (boucles de fond, messagerie asynchrone, orchestrateur)."""
+        """LIVE mode: starts NexusCore, which in turn starts every registered module
+        (background loops, asynchronous messaging, orchestrator)."""
         if self.core is None:
             return False
         if getattr(self.core, "running", False):
             return True
         ok = self.core.start()
-        print(f"NexusCore démarré : {ok} | modules vivants : {len(getattr(self.core, 'modules', {}))}")
+        print(f"NexusCore started: {ok} | live modules: {len(getattr(self.core, 'modules', {}))}")
         return ok
 
     @property
@@ -82,11 +82,11 @@ class GrandNexusSystem:
         log = logging.getLogger("GrandNexus.Boot")
         if self.core is not None and getattr(self.core, "running", False):
             try:
-                self.core.stop()          # arrête les modules que NexusCore a lui-même démarrés
+                self.core.stop()          # stops the modules NexusCore started itself
             except Exception as e:
                 log.warning(f"NexusCore.stop: {e}")
-            # modules démarrés par eux-mêmes (ex. ResourceManager à sa création) : NexusCore les
-            # croit « registered » et ne les arrête pas -> on arrête tout ce qui tourne encore
+            # modules that started themselves (e.g. ResourceManager at creation): NexusCore thinks
+            # they are only 'registered' and does not stop them -> stop everything still running
             for name, info in list(getattr(self.core, "modules", {}).items()):
                 inst = info.get("instance")
                 if getattr(inst, "running", False) is True and hasattr(inst, "stop"):
@@ -95,10 +95,10 @@ class GrandNexusSystem:
                     except Exception as e:
                         log.warning(f"{name}.stop: {e}")
             return
-        # mode laboratoire : NexusCore n'a jamais été démarré, on arrête ce qui l'a été
+        # laboratory mode: NexusCore was never started, stop whatever was
         for obj, meth in ((self.orchestrator, "stop"), (self.resource_manager, "stop"), (self.cognition, "stop"),
                           (self.graph_manager, "stop"),
-                          (getattr(self.core, "error_recovery", None), "shutdown")):  # lancé dès NexusCore()
+                          (getattr(self.core, "error_recovery", None), "shutdown")):  # started by NexusCore() itself
             if obj is not None and hasattr(obj, meth):
                 try:
                     getattr(obj, meth)()
@@ -111,7 +111,7 @@ def _step(system: GrandNexusSystem, name: str, fn, verbose: bool = False):
     try:
         result = fn()
         if result is False:
-            raise RuntimeError("a renvoyé False (voir les logs du module)")
+            raise RuntimeError("returned False (see the module logs)")
         system.report.append(BootStep(name, True, time.time() - t0,
                                       detail=result if isinstance(result, str) else None))
         return result
@@ -131,8 +131,8 @@ def find_anthropic_key(explicit: Optional[str] = None, with_reason: bool = False
     if explicit:
         return (explicit, "argument api_key") if with_reason else explicit
     if os.environ.get("ANTHROPIC_API_KEY"):
-        return (os.environ["ANTHROPIC_API_KEY"], "variable d'environnement") if with_reason else os.environ["ANTHROPIC_API_KEY"]
-    reason = "pas dans Colab (ni argument ni variable d'environnement)"
+        return (os.environ["ANTHROPIC_API_KEY"], "environment variable") if with_reason else os.environ["ANTHROPIC_API_KEY"]
+    reason = "pas dans Colab (ni argument ni environment variable)"
     try:
         from google.colab import userdata  # type: ignore
         key = userdata.get("ANTHROPIC_API_KEY")
@@ -140,9 +140,9 @@ def find_anthropic_key(explicit: Optional[str] = None, with_reason: bool = False
     except ImportError:
         pass
     except Exception as e:  # SecretNotFoundError, NotebookAccessError, TimeoutException...
-        hints = {"SecretNotFoundError": "aucun secret nommé exactement ANTHROPIC_API_KEY",
-                 "NotebookAccessError": "secret présent mais l'accès « notebook » est désactivé (interrupteur dans 🔑)",
-                 "TimeoutException": "fenêtre d'autorisation Colab non validée à temps"}
+        hints = {"SecretNotFoundError": "no secret named exactly ANTHROPIC_API_KEY",
+                 "NotebookAccessError": "secret present but notebook access is disabled (toggle in the 🔑 panel)",
+                 "TimeoutException": "Colab authorisation dialog not confirmed in time"}
         reason = hints.get(type(e).__name__, f"{type(e).__name__}: {e}")
     return (None, reason) if with_reason else None
 
@@ -155,10 +155,10 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
          llm: str = "auto", llm_model: str = "claude-sonnet-5-5",
          api_key: Optional[str] = None, reasoner_mode: Optional[str] = None) -> GrandNexusSystem:
     """Assemble GrandNexus.
-    Par défaut : mode LABORATOIRE — tout est créé et câblé, mais NexusCore n'est pas
-    démarré (pas de boucles de fond : résultats déterministes, idéal pour mesurer).
-    start_core=True (ou gn.start() ensuite) : mode VIVANT — NexusCore démarre et
-    lance tous les modules enregistrés."""
+    Default: LABORATORY mode - everything is created and wired, but NexusCore is not
+    started (no background loop: deterministic results, ideal for measuring).
+    start_core=True (or gn.start() later): LIVE mode - NexusCore starts and launches
+    every registered module."""
     logging.basicConfig(level=log_level, format="%(asctime)s %(name)s %(levelname)s: %(message)s")
     logging.getLogger().setLevel(log_level)
     logging.getLogger("NexusCore").setLevel(log_level)
@@ -175,11 +175,11 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
 
     gn.core = _step(gn, "NexusCore", lambda: NexusCore(db_file=db_file), verbose)
     lg = logging.getLogger("NexusCore")
-    if lg.handlers:            # NexusCore a son propre handler : évite chaque ligne en double
+    if lg.handlers:            # NexusCore has its own handler: avoids duplicated lines
         lg.propagate = False
     gn.graph = _step(gn, "GraphEngine (inmemory)", lambda: create_graph_engine("inmemory"), verbose)
     gn.working = _step(gn, "WorkingMemory", lambda: WorkingMemory(WorkingMemoryConfig()), verbose)
-    gn.semantic = _step(gn, "SemanticMemory (+graphe)",
+    gn.semantic = _step(gn, "SemanticMemory (+graph)",
                         lambda: SemanticMemory(SemanticMemoryConfig(), graph_engine=gn.graph), verbose)
     gn.episodic = _step(gn, "EpisodicMemory", lambda: EpisodicMemory(EpisodicMemoryConfig()), verbose)
 
@@ -189,7 +189,7 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
             if mod is not None:
                 gn.core.register_module(name, mod)
     if gn.core is not None:
-        _step(gn, "mémoires enregistrées dans NexusCore", _register_memories, verbose)
+        _step(gn, "memories registered in NexusCore", _register_memories, verbose)
 
     def _graph_manager():
         from grandnexus.graph.graph_module_manager import GraphModuleManager
@@ -205,11 +205,11 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
     if gn.cognition is not None:
         for part in ("perception", "reasoning", "learning", "metacognition"):
             _step(gn, f"modules {part}", getattr(gn.cognition, f"_initialize_{part}_modules"), verbose)
-        _step(gn, "voies cognitives (pathways)", gn.cognition._establish_initial_pathways, verbose)
+        _step(gn, "cognitive pathways", gn.cognition._establish_initial_pathways, verbose)
         if gn.core is not None:
-            _step(gn, "enregistrement dans NexusCore", gn.cognition._register_with_nexus_core, verbose)
+            _step(gn, "registration in NexusCore", gn.cognition._register_with_nexus_core, verbose)
         def _share_graph():
-            # un seul graphe pour tout le système : injecté là où le manager n'en a pas passé
+            # one graph for the whole system: injected where the manager did not pass one
             n = 0
             for name, mod in gn.modules().items():
                 if hasattr(mod, "graph_engine") and getattr(mod, "graph_engine") is None:
@@ -217,16 +217,16 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
                     n += 1
             return n
         if gn.graph is not None:
-            _step(gn, "graphe partagé injecté", _share_graph, verbose)
+            _step(gn, "shared graph injected", _share_graph, verbose)
         def _llm():
             # Language layer backed by Claude, used ONLY as a translator (see llm_translator.py)
             if llm == "off":
-                return "désactivé (llm='off')"
+                return "disabled (llm='off')"
             key, why = find_anthropic_key(api_key, with_reason=True)
             if not key and llm == "auto":
-                return f"DÉSACTIVÉ — clé non trouvée : {why}"
+                return f"DISABLED - key not found: {why}"
             if not key:
-                raise RuntimeError(f"llm='on' mais clé ANTHROPIC_API_KEY non trouvée : {why}")
+                raise RuntimeError(f"llm='on' but ANTHROPIC_API_KEY not found: {why}")
             try:
                 import anthropic  # noqa: F401
             except ImportError:
@@ -237,18 +237,18 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
                                          temperature=None, max_tokens=1500, synergy_with_memory=False,
                                          synergy_with_graph=False))
             if not engine.initialize():
-                raise RuntimeError("LLMEngine.initialize() a échoué (voir logs)")
+                raise RuntimeError("LLMEngine.initialize() failed (see logs)")
             gn.llm_engine = engine
             gn.translator = LLMTranslator(llm_engine=engine, model=llm_model, nexus_core=gn.core)
             # v7.0: the nexus_logic translator (text -> program) is the main pathway; the JSON one stays for comparison
             from grandnexus.llm_interface.translator_v5 import Translator as NxTranslator
             import anthropic
             gn.nx_translator = NxTranslator(client=anthropic.Anthropic(api_key=key), model=llm_model)
-            return f"{llm_model} (clé : {why}) | voie principale : nexus_logic"
-        _step(gn, "LLM traducteur (Anthropic)", _llm, verbose)
+            return f"{llm_model} (key: {why}) | main pathway : nexus_logic"
+        _step(gn, "LLM translator (Anthropic)", _llm, verbose)
 
         def _pathways():
-            # voie perception -> prémisses -> raisonnement (modules ajoutés, rien remplacé)
+            # perception -> premises -> reasoning pathway (modules added, nothing replaced)
             from grandnexus.cognition.perception.premise_extractor import PremiseExtractor
             from grandnexus.cognition.reasoning.text_reasoner import TextReasoner
             mods = gn.modules()
@@ -267,15 +267,15 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
             for name, mod in gn.cognition.extra_modules.items():
                 if gn.core is not None:
                     gn.core.register_module(name, mod)
-        _step(gn, "voie perception→raisonnement", _pathways, verbose)
+        _step(gn, "perception→reasoning pathway", _pathways, verbose)
         gn.cognition.initialized = True
-        n = _step(gn, "câblage des capacités", gn.cognition.wire_capabilities, verbose)
+        n = _step(gn, "capability wiring", gn.cognition.wire_capabilities, verbose)
         if start_threads:
             _step(gn, "CognitionManager.start()", gn.cognition.start, verbose)
 
     if with_orchestrator and gn.core is not None and gn.cognition is not None:
         def _adapters():
-            # noms attendus par CognitiveOrchestrator.start() via nexus_core.get_module(...)
+            # noms expecteds par CognitiveOrchestrator.start() via nexus_core.get_module(...)
             from grandnexus.cognition.adapters import ReasoningEngine, LearningManager, PerceptionModule
             from grandnexus.computation.resource_manager import ResourceManager
             mods = gn.modules()
@@ -286,19 +286,19 @@ def boot(db_file: Optional[str] = None, start_threads: bool = False,
             gn.resource_manager = ResourceManager(nexus_core=gn.core)
             if "resource_manager" not in getattr(gn.core, "modules", {}):   # it may register itself
                 gn.core.register_module("resource_manager", gn.resource_manager)
-        _step(gn, "adaptateurs orchestrateur (15/05)", _adapters, verbose)
+        _step(gn, "orchestrator adapters (15/05)", _adapters, verbose)
 
         def _orchestrator():
             from grandnexus.cognition.orchestration.cognitive_orchestrator import CognitiveOrchestrator
             orch = CognitiveOrchestrator(gn.core, {"monitoring_interval": 0.5, "execution_interval": 0.2})
             if not orch.start():
-                raise RuntimeError("CognitiveOrchestrator.start() a échoué (voir logs)")
+                raise RuntimeError("CognitiveOrchestrator.start() failed (see logs)")
             if not orchestrator_threads:
-                orch.stop()   # mode laboratoire : modules câblés, boucles de fond arrêtées
+                orch.stop()   # laboratory mode: modules wired, background loops stopped
             gn.core.register_module("cognitive_orchestrator", orch)
             gn.orchestrator = orch
             return orch
         _step(gn, "CognitiveOrchestrator", _orchestrator, verbose)
     if start_core:
-        _step(gn, "NexusCore.start() (mode vivant)", gn.start, verbose)
+        _step(gn, "NexusCore.start() (live mode)", gn.start, verbose)
     return gn

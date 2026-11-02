@@ -30,7 +30,7 @@ from grandnexus.llm_interface.translator_v5 import (SYSTEM_TRANSLATE, Translator
                                                     extract_program)
 from grandnexus.nexus_logic import decide, parse
 
-DECIDED = ("oui", "non", "contradictoire")
+DECIDED = ("yes", "no", "contradictory")
 
 SYSTEM_TRANSLATE_ALT = SYSTEM_TRANSLATE + """
 
@@ -150,7 +150,7 @@ class Deliberation:
     def policies(self, readings: Sequence[Reading], reflection: Optional[Reading]) -> Dict[str, str]:
         v = [r.verdict for r in readings]
         top, n_top = Counter(v).most_common(1)[0]
-        majority = top if n_top > len(v) / 2 else "inconnu"
+        majority = top if n_top > len(v) / 2 else "unknown"
         weights: Dict[str, float] = {}
         for r in readings:
             weights[r.verdict] = weights.get(r.verdict, 0.0) + r.confidence
@@ -160,7 +160,7 @@ class Deliberation:
             reflective = v[0]
         else:
             # the re-reading counts as one more voice; it decides only together with an earlier reading
-            reflective = reflection.verdict if reflection.verdict in v else "inconnu"
+            reflective = reflection.verdict if reflection.verdict in v else "unknown"
         return {
             "single": v[0],                                  # = the current system (one reading)
             "random": self.rng.choice(v),                    # control: any one reading
@@ -168,5 +168,5 @@ class Deliberation:
             "vote_confidence": weighted,                     # metacognition: confidence-weighted vote
             "adaptive": adaptive,                            # ruminate only when the first two disagree
             "reflective": reflective,                        # vote + targeted re-reading on divergence
-            "unanimity": v[0] if len(set(v)) == 1 else "inconnu",   # caution: answer only if all agree
+            "unanimity": v[0] if len(set(v)) == 1 else "unknown",   # caution: answer only if all agree
         }

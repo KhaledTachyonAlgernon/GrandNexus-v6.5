@@ -1,7 +1,7 @@
 """
-Test d'intégration GrandNexus + témoin bête.
-Question : le routage par priorité (invoke) donne-t-il plus de réponses utiles
-qu'un choix de capacité au hasard ?  Réponse « utile » = succès, confiance > 0.
+Test d'intégration GrandNexus + dumb baseline.
+Question : le routage par priorité (invoke) donne-t-il plus de answers utiles
+qu'un choix de capacité au random ?  Réponse « utile » = succès, confiance > 0.
 Usage : python tools/integration_test.py
 """
 import logging, random, sys, pathlib, statistics
@@ -10,7 +10,7 @@ from grandnexus.boot import boot
 from grandnexus.cognition.contracts import (CognitiveProcessType as P, CognitiveContext,
                                             CognitiveRequest)
 
-PERCEPTION_SET = [  # (entrée, type attendu)
+PERCEPTION_SET = [  # (entrée, type expected)
     ("2*x + 3 = 7", "MATHEMATICAL"), ("x^2 - 4 = 0", "MATHEMATICAL"),
     ("def f(x):\n    return x*2", "CODE"), ("import os\nprint(os.getcwd())", "CODE"),
     ('{"a": 1, "b": [1, 2]}', "STRUCTURED_DATA"), ("[1, 2, 3]", "STRUCTURED_DATA"),
@@ -47,22 +47,22 @@ def main(seed=0):
     for t, caps in cm.capabilities.summary().items():
         print(f"  {t}: {caps}")
 
-    print("\n[1] Perception : type détecté vs attendu")
+    print("\n[1] Perception : type détecté vs expected")
     hits = 0
     for q, expected in PERCEPTION_SET:
         r = cm.invoke(P.PERCEPTION, q)
         got = (r.output or {}).get("input_type") if isinstance(r.output, dict) else None
         hits += got == expected
-        print(f"  {'✓' if got == expected else '✗'} {q[:28]!r:32} attendu={expected:16} obtenu={got}")
+        print(f"  {'✓' if got == expected else '✗'} {q[:28]!r:32} expected={expected:16} got={got}")
     print(f"  ==> {hits}/{len(PERCEPTION_SET)} types corrects")
 
-    print("\n[2] Raisonnement : routage par priorité vs témoin aléatoire")
+    print("\n[2] Raisonnement : routage par priorité vs control aléatoire")
     caps = cm.capabilities.find(P.REASONING)
     routed = [useful(cm.invoke(P.REASONING, q)) for q in REASONING_SET]
     rand = [statistics.mean(call(random.choice(caps), q) for _ in range(10)) for q in REASONING_SET]
     per_cap = {c.name: [call(c, q) for q in REASONING_SET] for c in caps}
-    print(f"  routage priorité : {sum(routed)}/{len(REASONING_SET)} réponses utiles")
-    print(f"  témoin aléatoire : {sum(rand):.1f}/{len(REASONING_SET)} (moyenne sur 10 tirages)")
+    print(f"  routage priorité : {sum(routed)}/{len(REASONING_SET)} answers utiles")
+    print(f"  control aléatoire : {sum(rand):.1f}/{len(REASONING_SET)} (moyenne sur 10 tirages)")
     for name, v in per_cap.items():
         print(f"  capacité seule {name:15}: {sum(v)}/{len(REASONING_SET)}")
     print("\nBus :", gn.core.event_bus_stats()["published"])

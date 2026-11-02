@@ -10,7 +10,7 @@ def run(text, replies, label):
     it = iter(replies)
     tl = LLMTranslator(call=lambda s, p: json.dumps(next(it)))
     o = TextReasoner(reasoning_core=rc, translator=tl, mode="llm").answer(text, write_back=False)
-    got = o["answer"] if o["answer"] != "inconnu" else o.get("answer_with_knowledge", o["answer"])  # v7.0: starred answer apart
+    got = o["answer"] if o["answer"] != "unknown" else o.get("answer_with_knowledge", o["answer"])  # v7.0: starred answer apart
     print(f"{label:46} -> {got:14} star={o.get('depends_on_knowledge')} calls={tl.stats['calls']} repaired={tl.stats['repairs_improved']} rejected={[r['reason'][:40] for r in o['llm']['rejected']]}")
     return o
 # 1. comparative chain with a conjunctive transitivity rule in knowledge (neutral names)

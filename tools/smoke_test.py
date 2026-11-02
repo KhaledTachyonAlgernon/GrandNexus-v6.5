@@ -1,6 +1,6 @@
 """
-Test de fumée GrandNexus : chaque module est importé dans un processus isolé.
-Sortie : tableau OK/ÉCHEC + première cause. Sert de témoin avant/après chaque réparation.
+GrandNexus smoke test: every module is imported in an isolated process.
+Output: OK/FAIL table + first cause. Serves as a control before/after each repair.
 Usage : python tools/smoke_test.py [--json resultats.json]
 """
 import os, sys, json, subprocess, pathlib
@@ -22,10 +22,10 @@ def try_import(mod):
     if r.returncode == 0:
         return True, ""
     lines = [l for l in r.stderr.strip().split("\n") if l.strip()]
-    return False, lines[-1][:160] if lines else "erreur inconnue"
+    return False, lines[-1][:160] if lines else "error inconnue"
 
 def is_external(err):
-    """Dépendance tierce absente (pas un bug du code GrandNexus)."""
+    """Third-party dependency missing (not a GrandNexus code bug)."""
     import re
     m = re.search(r"No module named '([\w.]+)'", err)
     if m and not m.group(1).startswith("grandnexus"):
@@ -39,12 +39,12 @@ def main():
         ok, err = try_import(m)
         results[m] = (ok, err)
         ext = None if ok else is_external(err)
-        tag = "OK    " if ok else ("DÉP.  " if ext else "ÉCHEC ")
-        print(f"{tag} {m}" + ("" if ok else f"\n        └─ {('dépendance externe absente : ' + ext) if ext else err}"))
+        tag = "OK    " if ok else ("DEP.  " if ext else "FAIL ")
+        print(f"{tag} {m}" + ("" if ok else f"\n        └─ {('external dependency missing: ' + ext) if ext else err}"))
     n_ok = sum(1 for ok, _ in results.values() if ok)
     n_ext = sum(1 for ok, e in results.values() if not ok and is_external(e))
     n_bug = len(results) - n_ok - n_ext
-    print(f"\n==> {n_ok}/{len(results)} modules importables | {n_ext} bloqués par une dépendance externe | {n_bug} en échec de code")
+    print(f"\n==> {n_ok}/{len(results)} importable modules | {n_ext} blocked by an external dependency | {n_bug} code failures")
     if "--json" in sys.argv:
         json.dump(results, open(sys.argv[sys.argv.index("--json") + 1], "w"), indent=1, ensure_ascii=False)
     return n_ok, len(results)
