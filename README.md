@@ -1,3 +1,21 @@
+---
+license: apache-2.0
+language:
+  - en
+library_name: custom
+tags:
+  - artificial-intelligence
+  - cognitive-architecture
+  - neuro-symbolic-ai
+  - symbolic-reasoning
+  - agent-memory
+  - continual-learning
+  - knowledge-representation
+  - explainable-ai
+  - ai-safety
+  - open-source-ai
+---
+
 # GrandNexus v7.2.3-rc
 
 **An anchored translator and a reference engine that decide without inventing, and a laboratory to measure whether a loop learns.**
@@ -8,6 +26,9 @@ proof, checked against clingo; the answer is the strict verdict (text only), the
 Latest experiments are documented in LOGBOOK.md; generated benchmark outputs are intentionally excluded from version control.
 Everything else in this repository (the 2025 cognitive-architecture scaffolding: memories, graph, orchestrator, 15/05 layer)
 is an experimental ground around that core, kept and runnable but not demonstrated.
+
+**Keywords:** cognitive architecture, neuro-symbolic AI, symbolic reasoning, agent memory, continual learning, knowledge
+representation, explainable AI, grounded LLM translation, proof-carrying decisions, AI safety, and open-source AI research.
 
 This archive is a complete, self-contained snapshot: no notebook chain, no `%%writefile`, no update to graft.
 
@@ -42,7 +63,7 @@ Modes: laboratory (default, deterministic, nothing runs in the background) or li
 | `tools/smoke_test.py`, `tools/lab_*.py` | import test, labs (controls, layer oracles) |
 | `tests_lab/test_*.py` | offline tests (no API) |
 | `LOGBOOK.md` | logbook: every hypothesis -> result -> decision (49 entries) |
-| `tests_lab/resultats/` | every FOLIO run: results JSON + the translated programs |
+| `tests_lab/resultats/` | generated FOLIO outputs (kept out of version control) |
 | `archive/` | original 15/05 and 29/05 sources (untouched) |
 | `.git` | full history: every repair is one commit (`git log --oneline`) |
 
