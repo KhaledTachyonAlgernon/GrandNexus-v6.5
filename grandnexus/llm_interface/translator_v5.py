@@ -150,8 +150,10 @@ class Translator:
         return {"calls": len(rec), "tokens_in": sum(r.tokens_in for r in rec), "tokens_out": sum(r.tokens_out for r in rec),
                 "message_ids": [r.id for r in rec], "model": rec[0].model if rec else self.model}
 
-    def translate(self, text: str, query: str) -> Dict[str, Any]:
-        program = extract_program(self._call(SYSTEM_TRANSLATE, _user(text, query), "translate"))
+    def translate(self, text: str, query: str, examples: str = "") -> Dict[str, Any]:
+        """examples: an optional block of verified past readings (grandnexus.cognition.experience.examples_block),
+        placed before the text; this is how the learning loop influences a reading, with no prompt change."""
+        program = extract_program(self._call(SYSTEM_TRANSLATE, examples + _user(text, query), "translate"))
         prog = parse(program, source_text=text, require_anchor=self.require_anchor)
         rounds = 0
         while prog.rejections and rounds < self.corrective_rounds:      # tour correctif (v6.7.0), raisons incluses
@@ -164,9 +166,9 @@ class Translator:
             prog = parse(program, source_text=text, require_anchor=self.require_anchor)
         return {"program": program, "parsed": prog, "corrective_rounds": rounds}
 
-    def answer(self, text: str, query: str) -> Dict[str, Any]:
+    def answer(self, text: str, query: str, examples: str = "") -> Dict[str, Any]:
         n0 = len(self.receipts)
-        t = self.translate(text, query)
+        t = self.translate(text, query, examples)
         prog: Program = t["parsed"]
         full = decide(prog, use_knowledge=True)
         strict = decide(prog, use_knowledge=False)
@@ -177,6 +179,23 @@ class Translator:
                 "rejections": [str(r) for r in prog.rejections], "corrective_rounds": t["corrective_rounds"],
                 "n_statements": prog.n_statements, "prompt_version": PROMPT_VERSION,
                 "engine_version": ENGINE_VERSION, **self._tally(n0)}
+
+    def reflect_correction(self, text: str, query: str, program: str, got: str, expected: str) -> Dict[str, Any]:
+        """Learning loop: the reader is told only that its reading led to `got` while the expected verdict is
+        `expected`; it re-reads its own program against the text and returns a corrected full program. The caller
+        keeps it only if the engine then reaches the expected verdict (see tools/bench_learning.py)."""
+        n0 = len(self.receipts)
+        msg = (_user(text, query) + "\n\nYOUR PROGRAM:\n```nx\n" + program.strip() + "\n```\n\n"
+               f"The engine answered '{got}' from this program, but the expected answer is '{expected}'.\n"
+               "The engine is sound: the difference comes from the reading. Re-read the text sentence by sentence and find what the\n"
+               "program misses or misstates (a dropped qualifier, a wrong quantifier, 'A or B' read as two negations, a missing\n"
+               "statement, an unfaithful question). Do NOT add anything the text does not say and do not add background\n"
+               "knowledge just to reach the expected answer. Output the complete corrected program in the same format.")
+        corrected = extract_program(self._call(SYSTEM_TRANSLATE, msg, "reflect"))
+        prog = parse(corrected, source_text=text, require_anchor=self.require_anchor)
+        strict = decide(prog, use_knowledge=False)
+        return {"program": corrected, "verdict_strict": strict.answer, "rejections": [str(r) for r in prog.rejections],
+                **self._tally(n0)}
 
     def direct(self, text: str, query: str) -> Dict[str, Any]:
         """Control: Claude alone, no engine."""

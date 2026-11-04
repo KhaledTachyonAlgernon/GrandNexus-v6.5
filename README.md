@@ -1,11 +1,11 @@
-# GrandNexus v7.1.1
+# GrandNexus v7.2.3-rc
 
 **An anchored translator and a reference engine that decide without inventing, and a laboratory to measure whether a loop learns.**
 
 Claude translates a text and a question into a small logic language (anchored to the text: every statement quotes
 the span it comes from); the reference engine `nexus_logic` decides (yes / no / unknown / contradictory) with a printable
 proof, checked against clingo; the answer is the strict verdict (text only), the background-knowledge verdict is reported apart.
-Measured on FOLIO (100 fresh items of the train split): strict 78/100 with 2 asserted errors, Claude alone 79/100 with 11.
+Latest experiments are documented in LOGBOOK.md; generated benchmark outputs are intentionally excluded from version control.
 Everything else in this repository (the 2025 cognitive-architecture scaffolding: memories, graph, orchestrator, 15/05 layer)
 is an experimental ground around that core, kept and runnable but not demonstrated.
 
@@ -13,7 +13,7 @@ This archive is a complete, self-contained snapshot: no notebook chain, no `%%wr
 
 ## Quick start (Colab or any Python 3.10+)
 ```bash
-unzip GrandNexus_v7.1.1_complete.zip -d /content      # -> /content/GrandNexus
+unzip GrandNexus_v7.2.3-rc_complete.zip -d /content      # -> /content/GrandNexus
 pip install -q -r /content/GrandNexus/requirements.txt
 ```
 ```python
@@ -42,7 +42,7 @@ Modes: laboratory (default, deterministic, nothing runs in the background) or li
 | `tools/smoke_test.py`, `tools/lab_*.py` | import test, labs (controls, layer oracles) |
 | `tests_lab/test_*.py` | offline tests (no API) |
 | `LOGBOOK.md` | logbook: every hypothesis -> result -> decision (49 entries) |
-| `tests_lab/resultats/` | generated FOLIO outputs (kept out of version control) |
+| `tests_lab/resultats/` | every FOLIO run: results JSON + the translated programs |
 | `archive/` | original 15/05 and 29/05 sources (untouched) |
 | `.git` | full history: every repair is one commit (`git log --oneline`) |
 
